@@ -223,21 +223,21 @@ test.describe("US-006 Use the app free of charge", () => {
     // Adding a task is not restricted.
     const addBtn = page.getByRole("button", { name: "Add Task" });
     await expect(addBtn).toBeEnabled();
-    await page.getByPlaceholder("What needs to be done?").fill("Paywall check task");
+    await page.getByPlaceholder("What needs to be done?").fill("Restriction check task");
     await addBtn.click();
-    await expect(page.getByText("Paywall check task")).toBeVisible();
+    await expect(page.getByText("Restriction check task")).toBeVisible();
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await expectNoPaymentCopy(page);
 
     // Completing is not restricted.
-    const doneBtn = page.getByRole("button", { name: /Mark "Paywall check task" as done/i });
+    const doneBtn = page.getByRole("button", { name: /Mark "Restriction check task" as done/i });
     await expect(doneBtn).toBeEnabled();
     await doneBtn.click();
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await expectNoPaymentCopy(page);
 
     // Editing is not restricted.
-    await page.getByRole("button", { name: /Edit "Paywall check task"/i }).click();
+    await page.getByRole("button", { name: /Edit "Restriction check task"/i }).click();
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
     // The edit dialog contains only title/due fields — no payment upsell.
