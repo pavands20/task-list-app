@@ -7,7 +7,18 @@ _No routes found._
 <!-- sdlc:auto:end endpoints -->
 
 <!-- sdlc:auto:start drift -->
-_Code matches the designed API._
+**Designed but missing:**
+
+- DELETE /account
+- DELETE /tasks/{task_id}
+- GET /tasks
+- PATCH /tasks/{task_id}
+- POST /auth/login
+- POST /auth/logout
+- POST /auth/password-reset/confirm
+- POST /auth/password-reset/request
+- POST /auth/register
+- POST /tasks
 <!-- sdlc:auto:end drift -->
 
 <!-- sdlc:auto:start source -->

@@ -7,7 +7,12 @@ Pushes to `main` run `.github/workflows/deploy.yml`, which builds the API image 
 <!-- sdlc:auto:end how-it-deploys -->
 
 <!-- sdlc:auto:start environments -->
-_No environments recorded._
+| Name | Service | Runtime | Scaling | Environment |
+|---|---|---|---|---|
+| Web App (SPA) | AWS S3 + CloudFront (static hosting) | Static React 19 build | CDN edge, scales to zero origin cost when idle | dev |
+| API Service | AWS App Runner | FastAPI 0.115 on Python 3.12 (Uvicorn) | Scales down to minimal/idle and up on demand | dev |
+| Database | AWS RDS for PostgreSQL | PostgreSQL 16 | Single small instance, encrypted storage | dev |
+| Email Provider | SendGrid | SaaS transactional email API | Managed by provider | dev |
 <!-- sdlc:auto:end environments -->
 
 <!-- sdlc:auto:start live -->
@@ -15,5 +20,14 @@ _Not deployed yet._
 <!-- sdlc:auto:end live -->
 
 <!-- sdlc:auto:start topology -->
-_No deployment topology recorded._
+```mermaid
+graph LR
+  n_Web_App__SPA_["Web App (SPA)<br/>AWS S3 + CloudFront (static hosting)"]
+  n_API_Service["API Service<br/>AWS App Runner"]
+  n_Database["Database<br/>AWS RDS for PostgreSQL"]
+  n_Email_Provider["Email Provider<br/>SendGrid"]
+  n_Web_App__SPA_ -->|"HTTPS"| n_API_Service
+  n_API_Service -->|"PostgreSQL/TLS"| n_Database
+  n_API_Service -->|"HTTPS"| n_Email_Provider
+```
 <!-- sdlc:auto:end topology -->
