@@ -130,4 +130,41 @@ describe("Tasks screen", () => {
     expect(mockedApiFetch).toHaveBeenCalledTimes(1);
     expect(mockedApiFetch).toHaveBeenCalledWith("/tasks");
   });
+
+  it("[NFR-007] a user can manage tens of tasks with no paywall or restriction", async () => {
+    // The app is sized for individual users managing tens to hundreds of personal
+    // tasks. Verify tens of tasks loaded from the API all render with no cap,
+    // no paywall, and every one is toggleable.
+    const count = 30;
+    const many = Array.from({ length: count }, (_, i) =>
+      task({ id: `t${i + 1}`, title: `Scalability task ${i + 1}`, due_date: null }),
+    );
+    mockedApiFetch.mockResolvedValueOnce(many as never);
+
+    render(
+      <MemoryRouter>
+        <Tasks />
+      </MemoryRouter>,
+    );
+
+    // Every task is present and visible — no cap or paywall hid them.
+    for (let i = 0; i < count; i++) {
+      expect(await screen.findByText(`Scalability task ${i + 1}`)).toBeInTheDocument();
+    }
+
+    // No payment / billing / plan copy surfaced while rendering tens of tasks.
+    const body = (document.body.textContent ?? "").toLowerCase();
+    for (const term of [
+      "payment",
+      "billing",
+      "subscription",
+      "upgrade",
+      "paywall",
+      "choose a plan",
+      "free trial",
+      "paid plan",
+    ]) {
+      expect(body).not.toContain(term);
+    }
+  });
 });
