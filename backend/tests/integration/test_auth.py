@@ -128,9 +128,7 @@ def test_logout_with_valid_token_returns_204_and_invalidates_session(
 
     # Subsequent calls with the same token return 401.
     assert client.get("/tasks", headers=_auth_headers(token)).status_code == 401
-    assert (
-        client.post("/auth/logout", headers=_auth_headers(token)).status_code == 401
-    )
+    assert client.post("/auth/logout", headers=_auth_headers(token)).status_code == 401
 
 
 def test_logout_without_authorization_header_returns_401(client: TestClient) -> None:
@@ -144,10 +142,7 @@ def test_logout_with_invalid_or_expired_token_returns_401(
 ) -> None:
     """logout with an invalid or expired token returns 401."""
     # Invalid token.
-    assert (
-        client.post("/auth/logout", headers=_auth_headers("not-a-real-token")).status_code
-        == 401
-    )
+    assert client.post("/auth/logout", headers=_auth_headers("not-a-real-token")).status_code == 401
     # Expired token: register, then expire the session row, then attempt logout.
     email = _unique_email()
     password = _unique_password()
@@ -188,6 +183,5 @@ def test_ac008_expired_session_token_on_tasks_returns_401(
 
     assert client.get("/tasks", headers=_auth_headers(token)).status_code == 401
     assert (
-        client.post("/tasks", json={"title": "x"}, headers=_auth_headers(token)).status_code
-        == 401
+        client.post("/tasks", json={"title": "x"}, headers=_auth_headers(token)).status_code == 401
     )
