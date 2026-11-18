@@ -60,8 +60,20 @@ export class ApiError extends Error {
   }
 }
 
+// A 401 on a call made *with* a session token means the session has expired or
+// been revoked: end it locally and send the user back to sign-in. Calls made
+// without a session token (sign-in, register) are left for their own screens to
+// handle, so a wrong password does not silently reload the page and wipe the
+// error message.
+function redirectToSignIn(): void {
+  if (typeof window !== "undefined" && window.location) {
+    window.location.href = "/sign-in";
+  }
+}
+
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const bearer = getSessionToken() ?? API_SECRET_KEY;
+  const sessionToken = getSessionToken();
+  const bearer = sessionToken ?? API_SECRET_KEY;
   // Join with exactly one slash: API_BASE_URL is baked with a trailing slash (the API
   // sits behind a /apps/<slug>/ path prefix) and paths start with "/", so a naive
   // concat yields "...//auth/me", which a path-prefix proxy need not route.
@@ -74,6 +86,10 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     },
   });
   if (!response.ok) {
+    if (response.status === 401 && sessionToken) {
+      clearSessionToken();
+      redirectToSignIn();
+    }
     let body: unknown;
     try {
       body = await response.json();

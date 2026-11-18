@@ -6,6 +6,7 @@ import * as UI from "@/lib/ui";
 import { Icons } from "@/lib/icons";
 import { brand } from "@/lib/brand";
 import { useNavigate } from "@/lib/navigate";
+import { apiFetch, clearSessionToken } from "@/lib/api";
 
 const { Button, Input, Label } = UI;
 
@@ -25,13 +26,18 @@ export default function Screen() {
   const canConfirmDelete = confirmText.trim().toLowerCase() === "delete";
 
   // ── Handlers ───────────────────────────────────────────────────
-  function handleSignOut() {
+  async function handleSignOut() {
     setSigningOut(true);
     setError(null);
-    // Simulate the POST /auth/logout round-trip
-    setTimeout(() => {
+    try {
+      await apiFetch("/auth/logout", { method: "POST" });
+    } catch {
+      // If the server already rejected the token, the global 401 handler or
+      // the finally below still ends the local session.
+    } finally {
+      clearSessionToken();
       navigate("sign-in");
-    }, 450);
+    }
   }
 
   function handleDelete() {
