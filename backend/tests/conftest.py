@@ -1,20 +1,24 @@
 """Test fixtures: one fresh database per test, never the application's own.
 
-Without this file every test shares the SQLite file `DATABASE_URL` names, so a row
-one test writes is still there for the next one, and the order the tests run in
-decides whether they pass. Worse, a deployment that points `DATABASE_URL` at
-Postgres makes the suite need a database server to collect at all.
+Each test gets an in-memory SQLite database of its own. ``StaticPool`` keeps
+every session on the one connection that memory lives in, and the ``get_db``
+override makes the application use it instead of the engine ``app.database``
+built at import.
 
-Each test gets an in-memory database of its own. `StaticPool` keeps every session
-on the one connection that memory lives in, and the `get_db` override makes the
-application use it instead of the engine `app.database` built at import.
+When ``DATABASE_URL`` names a PostgreSQL server (the sandbox, production) the
+same fixture uses a real PostgreSQL connection with a transaction that rolls
+back on teardown, so tests exercise the same database the app runs against.
+The models use database-agnostic types (see ``app.models``) that resolve to
+``CITEXT`` and native ``uuid`` on PostgreSQL and plain ``String``/hex on
+SQLite, so both paths create the same schema.
 """
 
+import os
 from collections.abc import Iterator
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -22,23 +26,44 @@ from app import models  # noqa: F401 -- imported so the tables register before c
 from app.database import Base, get_db
 from app.main import app
 
+_DATABASE_URL = os.getenv("DATABASE_URL", "")
+_IS_POSTGRES = _DATABASE_URL.startswith("postgresql")
+
 
 @pytest.fixture
 def db_session() -> Iterator[Session]:
     """An empty database, built and thrown away around one test."""
-    engine = create_engine(
-        "sqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-        future=True,
-    )
-    Base.metadata.create_all(bind=engine)
-    session = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)()
-    try:
-        yield session
-    finally:
-        session.close()
-        engine.dispose()
+    if _IS_POSTGRES:
+        engine = create_engine(_DATABASE_URL, pool_pre_ping=True, future=True)
+        with engine.connect() as conn:
+            conn.execute(text("CREATE EXTENSION IF NOT EXISTS citext"))
+            conn.commit()
+        Base.metadata.create_all(bind=engine)
+
+        connection = engine.connect()
+        transaction = connection.begin()
+        session = Session(bind=connection, join_transaction_mode="create_savepoint")
+        try:
+            yield session
+        finally:
+            session.close()
+            transaction.rollback()
+            connection.close()
+            engine.dispose()
+    else:
+        engine = create_engine(
+            "sqlite://",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+            future=True,
+        )
+        Base.metadata.create_all(bind=engine)
+        session = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)()
+        try:
+            yield session
+        finally:
+            session.close()
+            engine.dispose()
 
 
 @pytest.fixture

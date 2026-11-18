@@ -32,7 +32,7 @@ export default function Screen() {
 
   const validateEmail = function (val) {
     if (!val.trim()) return "Email is required.";
-    var re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!re.test(val.trim())) return "Enter a valid email address.";
     if (EXISTING_EMAILS.includes(val.trim().toLowerCase())) {
       return "This email is already registered. Try signing in instead.";
@@ -49,9 +49,9 @@ export default function Screen() {
   const handleSubmit = function (e) {
     if (e) e.preventDefault();
     if (submitting) return;
-    var emailErr = validateEmail(email);
-    var passErr = validatePassword(password);
-    var newErrors = {};
+    const emailErr = validateEmail(email);
+    const passErr = validatePassword(password);
+    const newErrors = {};
     if (emailErr) newErrors.email = emailErr;
     if (passErr) newErrors.password = passErr;
     setErrors(newErrors);
@@ -63,7 +63,7 @@ export default function Screen() {
     }, 700);
   };
 
-  var labelStyle = {
+  const labelStyle = {
     fontSize: "11px",
     fontWeight: 600,
     letterSpacing: "0.14em",
@@ -73,7 +73,7 @@ export default function Screen() {
     marginBottom: "8px",
   };
 
-  var getInputStyle = function (hasError) {
+  const getInputStyle = function (hasError) {
     return {
       width: "100%",
       border: "2px solid " + (hasError ? brand.accentColor : brand.primaryColor),
@@ -219,7 +219,7 @@ export default function Screen() {
                 setEmail(e.target.value);
                 if (errors.email)
                   setErrors(function (prev) {
-                    var n = Object.assign({}, prev);
+                    const n = Object.assign({}, prev);
                     delete n.email;
                     return n;
                   });
@@ -281,7 +281,7 @@ export default function Screen() {
                 setPassword(e.target.value);
                 if (errors.password)
                   setErrors(function (prev) {
-                    var n = Object.assign({}, prev);
+                    const n = Object.assign({}, prev);
                     delete n.password;
                     return n;
                   });
