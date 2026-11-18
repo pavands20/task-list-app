@@ -7,7 +7,26 @@
 // paywall, these assertions fail rather than ship a paid-plan restriction.
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("@/lib/api", () => ({
+  apiFetch: vi.fn().mockResolvedValue([]),
+  setSessionToken: vi.fn(),
+  getSessionToken: vi.fn(() => "test-token"),
+  clearSessionToken: vi.fn(),
+  ApiError: class ApiError extends Error {
+    status: number;
+    body: unknown;
+    constructor(status: number, body: unknown, message: string) {
+      super(message);
+      this.name = "ApiError";
+      this.status = status;
+      this.body = body;
+    }
+  },
+  API_BASE_URL: "",
+  API_SECRET_KEY: "",
+}));
 
 import Tasks from "@/screens/Tasks";
 

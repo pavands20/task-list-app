@@ -16,6 +16,7 @@ from app.config import ALLOWED_ORIGINS as _configured_origins
 from app.database import SessionLocal
 from app.migrations import run_migrations
 from app.routers import auth as auth_router
+from app.routers import tasks as tasks_router
 from app.seed import seed_bootstrap_users
 
 
@@ -47,6 +48,7 @@ app = FastAPI(
 )
 
 app.include_router(auth_router.router)
+app.include_router(tasks_router.router)
 
 # The SPA runs on a different origin than the API, so the browser refuses its calls
 # unless that origin is allowed here. In development that is the Vite dev server; when
