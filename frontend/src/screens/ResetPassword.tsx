@@ -1,13 +1,16 @@
 // @ts-nocheck -- generated from the approved design under its JS runtime contract; not hand-written TypeScript.
 
 import React from "react";
+import { useSearchParams } from "react-router-dom";
 
 import { Icons } from "@/lib/icons";
 import { brand } from "@/lib/brand";
 import { useNavigate } from "@/lib/navigate";
+import { apiFetch, ApiError } from "@/lib/api";
 
 export default function Screen() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [newPassword, setNewPassword] = React.useState("");
   const [confirmPassword, setConfirmPassword] = React.useState("");
   const [errors, setErrors] = React.useState({});
@@ -43,15 +46,40 @@ export default function Screen() {
     const e = validate();
     setErrors(e);
     if (Object.keys(e).length > 0) return;
+
+    const token = searchParams.get("token") || "";
     setSubmitting(true);
-    // Simulate API call to POST /auth/password-reset/confirm
-    setTimeout(function () {
-      setSubmitting(false);
-      setDone(true);
-      setTimeout(function () {
-        navigate("sign-in");
-      }, 1600);
-    }, 700);
+    apiFetch("/auth/password-reset/confirm", {
+      method: "POST",
+      body: JSON.stringify({ token, new_password: newPassword }),
+    })
+      .then(function () {
+        setSubmitting(false);
+        setDone(true);
+        setTimeout(function () {
+          navigate("sign-in");
+        }, 1600);
+      })
+      .catch(function (err) {
+        setSubmitting(false);
+        if (err instanceof ApiError && err.status === 400) {
+          const detail = err.body && err.body.detail;
+          if (typeof detail === "string") {
+            setErrors({ form: detail });
+          } else if (
+            detail &&
+            typeof detail === "object" &&
+            Array.isArray(detail.new_password) &&
+            detail.new_password.length
+          ) {
+            setErrors({ newPassword: detail.new_password[0] });
+          } else {
+            setErrors({ form: "Invalid or expired reset token." });
+          }
+        } else {
+          setErrors({ form: "Could not reset your password. Please try again." });
+        }
+      });
   }
 
   const labelClass = "block uppercase mb-1.5";
@@ -207,6 +235,34 @@ export default function Screen() {
           noValidate: true,
           style: { width: "100%" },
         },
+        errors.form &&
+          React.createElement(
+            "div",
+            {
+              role: "alert",
+              style: {
+                border: "2px solid " + brand.accentColor,
+                borderRadius: brand.radius,
+                padding: "10px 12px",
+                marginBottom: "20px",
+                display: "flex",
+                alignItems: "flex-start",
+                gap: "8px",
+              },
+            },
+            React.createElement(Icons.AlertCircle, {
+              size: 16,
+              "aria-hidden": true,
+              style: { color: brand.accentColor, flexShrink: 0, marginTop: "1px" },
+            }),
+            React.createElement(
+              "span",
+              {
+                style: { fontSize: "13px", color: brand.accentColor, lineHeight: 1.5 },
+              },
+              errors.form,
+            ),
+          ),
         // New password
         React.createElement(
           "div",

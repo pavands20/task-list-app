@@ -6,6 +6,7 @@ import * as UI from "@/lib/ui";
 import { Icons } from "@/lib/icons";
 import { brand } from "@/lib/brand";
 import { useNavigate } from "@/lib/navigate";
+import { apiFetch } from "@/lib/api";
 
 const { Input, Label } = UI;
 
@@ -14,11 +15,12 @@ export default function Screen() {
   const [email, setEmail] = React.useState("");
   const [error, setError] = React.useState(null);
   const [submitted, setSubmitted] = React.useState(false);
+  const [confirmation, setConfirmation] = React.useState("");
   const [loading, setLoading] = React.useState(false);
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
     setError(null);
 
@@ -33,11 +35,21 @@ export default function Screen() {
     }
 
     setLoading(true);
-    // Simulate request — no server, state-only
-    setTimeout(function () {
-      setLoading(false);
+    try {
+      const data = await apiFetch("/auth/password-reset/request", {
+        method: "POST",
+        body: JSON.stringify({ email: trimmed }),
+      });
+      setConfirmation(
+        (data && data.message) ||
+          "If an account exists for this email, a password reset link has been sent.",
+      );
       setSubmitted(true);
-    }, 600);
+    } catch {
+      setError("Could not send the reset link. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   function handleReset() {
@@ -205,8 +217,8 @@ export default function Screen() {
                   }}
                 />
                 <p style={Object.assign({}, confirmationTextStyle, { margin: "0" })}>
-                  If an account exists for this email, a password reset link has been sent. The same
-                  confirmation is shown whether or not the email is registered.
+                  {confirmation ||
+                    "If an account exists for this email, a password reset link has been sent."}
                 </p>
               </div>
             </div>
