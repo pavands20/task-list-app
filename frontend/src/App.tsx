@@ -1,6 +1,8 @@
 import { NavLink, Navigate, Outlet, Route, Routes } from "react-router-dom";
+import type { ReactElement } from "react";
 
 import { Icons } from "@/lib/icons";
+import { getSessionToken } from "@/lib/api";
 import Tasks from "@/screens/Tasks";
 import SignIn from "@/screens/SignIn";
 import Register from "@/screens/Register";
@@ -51,12 +53,35 @@ function AppShellLayout() {
   );
 }
 
+// Protects routes that require a signed-in user. With no session token in
+// localStorage the visitor is sent to /sign-in instead of the protected screen.
+function RequireAuth({ children }: { children: ReactElement }) {
+  if (!getSessionToken()) {
+    return <Navigate to="/sign-in" replace />;
+  }
+  return children;
+}
+
 export default function App() {
   return (
     <Routes>
       <Route element={<AppShellLayout />}>
-        <Route path="/tasks" element={<Tasks />} />
-        <Route path="/account" element={<Account />} />
+        <Route
+          path="/tasks"
+          element={
+            <RequireAuth>
+              <Tasks />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/account"
+          element={
+            <RequireAuth>
+              <Account />
+            </RequireAuth>
+          }
+        />
       </Route>
       <Route path="/sign-in" element={<SignIn />} />
       <Route path="/register" element={<Register />} />

@@ -1,0 +1,40 @@
+{
+  "key": {
+    "app_design_id": "3d216441-d920-4084-8d95-2f60d3b68d23",
+    "app_design_version": 1,
+    "architecture_document_id": "fec88f25-55fc-42d4-9982-5e27b62d8e13",
+    "architecture_version": 1
+  },
+  "outcome": "prepared",
+  "packages": [
+    {
+      "ecosystem": "pypi",
+      "installed_version": "1.7.4",
+      "name": "passlib",
+      "status": "installed",
+      "version": ">=1.7.4"
+    },
+    {
+      "ecosystem": "pypi",
+      "installed_version": "6.12.5",
+      "name": "sendgrid",
+      "status": "installed",
+      "version": ">=6.11.0"
+    },
+    {
+      "ecosystem": "pypi",
+      "installed_version": "2.4.0",
+      "name": "email-validator",
+      "status": "installed",
+      "version": ">=2.0.0"
+    },
+    {
+      "ecosystem": "npm",
+      "error": "already provided by the scaffold",
+      "name": "react-router-dom",
+      "status": "skipped",
+      "version": ">=6.26.0"
+    }
+  ],
+  "prepared_by_run": "14c1d47a-a4b5-4f12-8600-a3d484b5e45d"
+}

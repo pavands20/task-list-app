@@ -1,36 +1,27 @@
 // @ts-nocheck -- generated from the approved design under its JS runtime contract; not hand-written TypeScript.
-/* eslint-disable @typescript-eslint/no-unused-vars */
+
 import React from "react";
 
 import * as UI from "@/lib/ui";
 import { Icons } from "@/lib/icons";
 import { brand } from "@/lib/brand";
 import { useNavigate } from "@/lib/navigate";
+import { apiFetch, setSessionToken } from "@/lib/api";
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const { Input, Label } = UI;
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const { AlertCircle } = Icons;
 
-const REGISTERED_EMAIL = "elena.voss@oberon-works.com";
+const { AlertCircle } = Icons;
 
 export default function Screen() {
   const navigate = useNavigate();
-  const [email, setEmail] = React.useState(REGISTERED_EMAIL);
+  const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [emailError, setEmailError] = React.useState("");
   const [passwordError, setPasswordError] = React.useState("");
   const [authError, setAuthError] = React.useState("");
   const [loading, setLoading] = React.useState(false);
-  const timerRef = React.useRef(null);
 
-  React.useEffect(() => {
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, []);
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setAuthError("");
     setEmailError("");
@@ -52,14 +43,19 @@ export default function Screen() {
     if (!valid) return;
 
     setLoading(true);
-    timerRef.current = setTimeout(() => {
+    try {
+      const data = await apiFetch("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email: trimmedEmail, password }),
+      });
+      setSessionToken(data.token);
+      navigate("tasks");
+    } catch {
+      // Generic message that does not reveal whether the email exists (NFR-004).
+      setAuthError("The email or password you entered is incorrect.");
+    } finally {
       setLoading(false);
-      if (trimmedEmail === REGISTERED_EMAIL && password.length >= 4) {
-        navigate("tasks");
-      } else {
-        setAuthError("The email or password you entered is incorrect.");
-      }
-    }, 650);
+    }
   };
 
   const labelStyle = {
@@ -194,7 +190,11 @@ export default function Screen() {
                 gap: "8px",
               }}
             >
-              <AlertCircle size={16} style={{ color: brand.accentColor, flexShrink: 0, marginTop: "1px" }} aria-hidden />
+              <AlertCircle
+                size={16}
+                style={{ color: brand.accentColor, flexShrink: 0, marginTop: "1px" }}
+                aria-hidden
+              />
               <span style={{ fontSize: "13px", color: brand.accentColor, lineHeight: 1.5 }}>
                 {authError}
               </span>
@@ -296,7 +296,8 @@ export default function Screen() {
                 letterSpacing: "0.08em",
                 fontFamily: brand.fontBody,
                 cursor: loading ? "not-allowed" : "pointer",
-                transition: "background-color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease",
+                transition:
+                  "background-color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease",
                 opacity: loading ? 0.7 : 1,
               }}
             >
