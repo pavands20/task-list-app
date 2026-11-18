@@ -6,15 +6,9 @@ import * as UI from "@/lib/ui";
 import { Icons } from "@/lib/icons";
 import { brand } from "@/lib/brand";
 import { useNavigate } from "@/lib/navigate";
+import { apiFetch, setSessionToken, ApiError } from "@/lib/api";
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const { Button, Input, Label } = UI;
-
-const EXISTING_EMAILS = [
-  "daniel.kovacs@arvidcorp.com",
-  "sarah.chen@meridian.io",
-  "marcus.ohl@brunswickpartners.se",
-];
 
 export default function Screen() {
   const navigate = useNavigate();
@@ -22,21 +16,11 @@ export default function Screen() {
   const [password, setPassword] = React.useState("");
   const [errors, setErrors] = React.useState({});
   const [submitting, setSubmitting] = React.useState(false);
-  const timerRef = React.useRef(null);
-
-  React.useEffect(() => {
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, []);
 
   const validateEmail = function (val) {
     if (!val.trim()) return "Email is required.";
     const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!re.test(val.trim())) return "Enter a valid email address.";
-    if (EXISTING_EMAILS.includes(val.trim().toLowerCase())) {
-      return "This email is already registered. Try signing in instead.";
-    }
     return null;
   };
 
@@ -46,7 +30,7 @@ export default function Screen() {
     return null;
   };
 
-  const handleSubmit = function (e) {
+  const handleSubmit = async function (e) {
     if (e) e.preventDefault();
     if (submitting) return;
     const emailErr = validateEmail(email);
@@ -58,9 +42,39 @@ export default function Screen() {
     if (Object.keys(newErrors).length > 0) return;
 
     setSubmitting(true);
-    timerRef.current = setTimeout(function () {
+    try {
+      const data = await apiFetch("/auth/register", {
+        method: "POST",
+        body: JSON.stringify({ email: email.trim(), password }),
+      });
+      setSessionToken(data.token);
       navigate("tasks");
-    }, 700);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        if (err.status === 409) {
+          setErrors({ email: "Email is already registered" });
+        } else if (
+          err.status === 400 &&
+          err.body &&
+          typeof err.body === "object" &&
+          err.body.detail &&
+          typeof err.body.detail === "object"
+        ) {
+          const detail = err.body.detail;
+          const ne = {};
+          if (Array.isArray(detail.email) && detail.email.length) ne.email = detail.email[0];
+          if (Array.isArray(detail.password) && detail.password.length)
+            ne.password = detail.password[0];
+          setErrors(ne);
+        } else {
+          setErrors({ email: "Could not create your account. Please try again." });
+        }
+      } else {
+        setErrors({ email: "Could not create your account. Please try again." });
+      }
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const labelStyle = {
@@ -106,7 +120,9 @@ export default function Screen() {
         "@media (prefers-reduced-motion:reduce){" +
         ".reg-input,.reg-btn,.reg-link{transition:none!important}}" +
         ".reg-btn:hover:not(:disabled){opacity:0.88}" +
-        ".reg-link:hover{color:" + brand.primaryColor + "}"
+        ".reg-link:hover{color:" +
+        brand.primaryColor +
+        "}",
     ),
     React.createElement(
       "div",
@@ -145,8 +161,8 @@ export default function Screen() {
                 color: brand.primaryColor,
               },
             },
-            "Obsidian Tasks"
-          )
+            "Obsidian Tasks",
+          ),
         ),
         // b-0-0: Title
         React.createElement(
@@ -163,7 +179,7 @@ export default function Screen() {
               margin: 0,
             },
             children: "Create Account",
-          })
+          }),
         ),
         // b-1-0: Description
         React.createElement(
@@ -179,7 +195,7 @@ export default function Screen() {
             },
             children:
               "Sign up with your email and a password. No email verification needed — you'll be signed in right away.",
-          })
+          }),
         ),
         // Rule
         React.createElement("div", {
@@ -203,11 +219,7 @@ export default function Screen() {
           React.createElement(
             "div",
             { style: { padding: "20px 0" } },
-            React.createElement(
-              Label,
-              { htmlFor: "reg-email", style: labelStyle },
-              "Email"
-            ),
+            React.createElement(Label, { htmlFor: "reg-email", style: labelStyle }, "Email"),
             React.createElement(Input, {
               id: "reg-email",
               "data-wf": "i-2-0-0",
@@ -249,8 +261,8 @@ export default function Screen() {
                   "aria-hidden": "true",
                   style: { flexShrink: 0, marginTop: "2px" },
                 }),
-                React.createElement("span", null, errors.email)
-              )
+                React.createElement("span", null, errors.email),
+              ),
           ),
           // Hairline divider
           React.createElement("div", {
@@ -265,11 +277,7 @@ export default function Screen() {
           React.createElement(
             "div",
             { style: { padding: "20px 0" } },
-            React.createElement(
-              Label,
-              { htmlFor: "reg-password", style: labelStyle },
-              "Password"
-            ),
+            React.createElement(Label, { htmlFor: "reg-password", style: labelStyle }, "Password"),
             React.createElement(Input, {
               id: "reg-password",
               "data-wf": "i-2-0-1",
@@ -287,9 +295,7 @@ export default function Screen() {
                   });
               },
               "aria-invalid": !!errors.password,
-              "aria-describedby": errors.password
-                ? "reg-password-error"
-                : "reg-password-hint",
+              "aria-describedby": errors.password ? "reg-password-error" : "reg-password-hint",
               style: getInputStyle(!!errors.password),
             }),
             errors.password
@@ -313,7 +319,7 @@ export default function Screen() {
                     "aria-hidden": "true",
                     style: { flexShrink: 0, marginTop: "2px" },
                   }),
-                  React.createElement("span", null, errors.password)
+                  React.createElement("span", null, errors.password),
                 )
               : React.createElement("p", {
                   id: "reg-password-hint",
@@ -325,8 +331,8 @@ export default function Screen() {
                     lineHeight: 1.4,
                   },
                   children: "Minimum 8 characters.",
-                })
-          )
+                }),
+          ),
         ),
         // Rule
         React.createElement("div", {
@@ -346,9 +352,7 @@ export default function Screen() {
               className: "reg-btn",
               style: {
                 width: "100%",
-                backgroundColor: submitting
-                  ? brand.neutralColor
-                  : brand.primaryColor,
+                backgroundColor: submitting ? brand.neutralColor : brand.primaryColor,
                 color: brand.backgroundColor,
                 border: "2px solid " + brand.primaryColor,
                 borderRadius: brand.radius,
@@ -361,8 +365,8 @@ export default function Screen() {
                 transition: "background-color 120ms ease, opacity 120ms ease",
               },
             },
-            submitting ? "Creating account…" : "Create Account"
-          )
+            submitting ? "Creating account…" : "Create Account",
+          ),
         ),
         // b-4-0: Link
         React.createElement(
@@ -389,10 +393,10 @@ export default function Screen() {
                 transition: "color 120ms ease",
               },
             },
-            "Already have an account? Sign in"
-          )
-        )
-      )
-    )
+            "Already have an account? Sign in",
+          ),
+        ),
+      ),
+    ),
   );
 }
