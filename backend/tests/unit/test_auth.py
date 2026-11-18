@@ -12,7 +12,7 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from app.auth import create_session, get_current_user
+from app.auth import create_session, get_current_user, revoke_session
 from app.models import Session as SessionModel
 from app.models import User
 from app.routers.auth import _validate_credentials, register
@@ -132,3 +132,25 @@ def test_nfr001_register_stores_hash_not_plaintext(db_session: Session) -> None:
     assert user is not None
     assert user.password_hash != password
     assert user.password_hash.startswith("$2")
+
+
+def test_create_session_then_revoke_session_makes_token_hash_unresolvable(
+    db_session: Session,
+) -> None:
+    """NFR-002: create_session then revoke_session makes the token_hash unresolvable."""
+    user = User(email="revoke@example.com", password_hash=hash_password("pw"))
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+
+    token = create_session(db_session, user)
+    assert db_session.query(SessionModel).filter_by(user_id=user.id).count() == 1
+
+    assert revoke_session(db_session, token) is True
+    # The session row is gone, so the token can no longer resolve to a user.
+    assert db_session.query(SessionModel).filter_by(user_id=user.id).count() == 0
+    with pytest.raises(HTTPException) as exc:
+        get_current_user(authorization=f"Bearer {token}", db=db_session)
+    assert exc.value.status_code == 401
+    # Revoking again is a no-op (token already gone).
+    assert revoke_session(db_session, token) is False

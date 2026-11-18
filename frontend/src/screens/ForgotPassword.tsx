@@ -7,7 +7,6 @@ import { Icons } from "@/lib/icons";
 import { brand } from "@/lib/brand";
 import { useNavigate } from "@/lib/navigate";
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const { Input, Label } = UI;
 
 export default function Screen() {
@@ -307,10 +306,7 @@ export default function Screen() {
                   </>
                 ) : (
                   <>
-                    <Icons.FileText
-                      aria-hidden="true"
-                      style={{ width: "16px", height: "16px" }}
-                    />
+                    <Icons.FileText aria-hidden="true" style={{ width: "16px", height: "16px" }} />
                     Send Reset Link
                   </>
                 )}
@@ -345,10 +341,7 @@ export default function Screen() {
               }}
             >
               Follow reset link from email
-              <Icons.ChevronRight
-                aria-hidden="true"
-                style={{ width: "14px", height: "14px" }}
-              />
+              <Icons.ChevronRight aria-hidden="true" style={{ width: "14px", height: "14px" }} />
             </button>
           </div>
           <div data-wf="b-5-1" style={{ flex: "1 1 0", minWidth: "180px" }}>
@@ -365,10 +358,7 @@ export default function Screen() {
                 e.target.style.color = brand.primaryColor;
               }}
             >
-              <Icons.ArrowLeft
-                aria-hidden="true"
-                style={{ width: "14px", height: "14px" }}
-              />
+              <Icons.ArrowLeft aria-hidden="true" style={{ width: "14px", height: "14px" }} />
               Back to sign in
             </button>
           </div>

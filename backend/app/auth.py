@@ -48,6 +48,16 @@ def create_session(db: Session, user: User) -> str:
     return token
 
 
+def revoke_session(db: Session, token: str) -> bool:
+    """Delete the session row whose hash matches *token*; return True if one was removed."""
+    session = db.query(SessionModel).filter_by(token_hash=_hash_token(token)).first()
+    if session is None:
+        return False
+    db.delete(session)
+    db.commit()
+    return True
+
+
 def get_current_user(
     authorization: AuthorizationHeader = None,
     db: DbSession = None,

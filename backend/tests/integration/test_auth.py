@@ -5,9 +5,23 @@ AC-003 (invalid email / empty password 400 with field detail), AC-004 (login
 success) and AC-005/NFR-004 (wrong credentials 401 generic, no enumeration).
 """
 
+import hashlib
 import secrets
+from datetime import UTC, datetime, timedelta
 
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
+
+from app.models import Session as SessionModel
+
+
+def _expire_active_session(db: Session, token: str) -> None:
+    """Move the session row matching *token* into the past so it is expired."""
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    session = db.query(SessionModel).filter_by(token_hash=token_hash).first()
+    assert session is not None, "no session row for the given token"
+    session.expires_at = datetime.now(UTC) - timedelta(hours=1)
+    db.commit()
 
 
 def _unique_email() -> str:
@@ -88,3 +102,92 @@ def test_ac005_login_unknown_email_returns_401_generic(client: TestClient) -> No
 
     assert resp.status_code == 401
     assert resp.json()["detail"] == "Invalid email or password"
+
+
+def _unique_password() -> str:
+    return secrets.token_urlsafe(16)
+
+
+def _auth_headers(token: str) -> dict[str, str]:
+    return {"Authorization": f"Bearer {token}"}
+
+
+def test_logout_with_valid_token_returns_204_and_invalidates_session(
+    client: TestClient,
+) -> None:
+    """NFR-002: logout with a valid Bearer token returns 204 and the token cannot be reused."""
+    email = _unique_email()
+    password = _unique_password()
+    resp = client.post("/auth/register", json={"email": email, "password": password})
+    assert resp.status_code == 200, resp.text
+    token = resp.json()["token"]
+
+    logout = client.post("/auth/logout", headers=_auth_headers(token))
+    assert logout.status_code == 204
+    assert logout.content == b""
+
+    # Subsequent calls with the same token return 401.
+    assert client.get("/tasks", headers=_auth_headers(token)).status_code == 401
+    assert (
+        client.post("/auth/logout", headers=_auth_headers(token)).status_code == 401
+    )
+
+
+def test_logout_without_authorization_header_returns_401(client: TestClient) -> None:
+    """logout without an Authorization header returns 401."""
+    resp = client.post("/auth/logout")
+    assert resp.status_code == 401
+
+
+def test_logout_with_invalid_or_expired_token_returns_401(
+    client: TestClient, db_session: Session
+) -> None:
+    """logout with an invalid or expired token returns 401."""
+    # Invalid token.
+    assert (
+        client.post("/auth/logout", headers=_auth_headers("not-a-real-token")).status_code
+        == 401
+    )
+    # Expired token: register, then expire the session row, then attempt logout.
+    email = _unique_email()
+    password = _unique_password()
+    resp = client.post("/auth/register", json={"email": email, "password": password})
+    assert resp.status_code == 200, resp.text
+    token = resp.json()["token"]
+    _expire_active_session(db_session, token)
+    assert client.post("/auth/logout", headers=_auth_headers(token)).status_code == 401
+
+
+def test_register_logout_then_get_tasks_returns_401(client: TestClient) -> None:
+    """Integration: register -> logout -> GET /tasks returns 401."""
+    email = _unique_email()
+    password = _unique_password()
+    resp = client.post("/auth/register", json={"email": email, "password": password})
+    assert resp.status_code == 200, resp.text
+    token = resp.json()["token"]
+
+    # The token works before logout.
+    assert client.get("/tasks", headers=_auth_headers(token)).status_code == 200
+
+    logout = client.post("/auth/logout", headers=_auth_headers(token))
+    assert logout.status_code == 204
+
+    assert client.get("/tasks", headers=_auth_headers(token)).status_code == 401
+
+
+def test_ac008_expired_session_token_on_tasks_returns_401(
+    client: TestClient, db_session: Session
+) -> None:
+    """AC-008: an expired session token used on GET /tasks and POST /tasks returns 401."""
+    email = _unique_email()
+    password = _unique_password()
+    resp = client.post("/auth/register", json={"email": email, "password": password})
+    assert resp.status_code == 200, resp.text
+    token = resp.json()["token"]
+    _expire_active_session(db_session, token)
+
+    assert client.get("/tasks", headers=_auth_headers(token)).status_code == 401
+    assert (
+        client.post("/tasks", json={"title": "x"}, headers=_auth_headers(token)).status_code
+        == 401
+    )

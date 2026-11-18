@@ -16,7 +16,7 @@ from email_validator import EmailNotValidError, validate_email
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.auth import create_session
+from app.auth import AuthorizationHeader, create_session, get_current_user, revoke_session
 from app.database import get_db
 from app.models import User
 from app.schemas import AuthResponse, Credentials, UserPublic
@@ -67,3 +67,19 @@ def login(credentials: Credentials, db: DbSession) -> AuthResponse:
         raise HTTPException(status_code=401, detail="Invalid email or password")
     token = create_session(db, user)
     return AuthResponse(token=token, user=UserPublic(id=str(user.id), email=user.email))
+
+
+@router.post("/logout", status_code=204)
+def logout(
+    db: DbSession,
+    authorization: AuthorizationHeader = None,
+) -> None:
+    """Revoke the caller's session token (NFR-002).
+
+    A missing, invalid or expired token yields 401; only a currently-valid
+    session is revoked.
+    """
+    get_current_user(authorization=authorization, db=db)
+    token = authorization.split(" ", 1)[1].strip()
+    revoke_session(db, token)
+    return None
