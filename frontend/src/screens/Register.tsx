@@ -1,5 +1,4 @@
 // @ts-nocheck -- generated from the approved design under its JS runtime contract; not hand-written TypeScript.
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import React from "react";
 
 import * as UI from "@/lib/ui";
@@ -8,7 +7,7 @@ import { brand } from "@/lib/brand";
 import { useNavigate } from "@/lib/navigate";
 import { apiFetch, setSessionToken, ApiError } from "@/lib/api";
 
-const { Button, Input, Label } = UI;
+const { Input, Label } = UI;
 
 export default function Screen() {
   const navigate = useNavigate();

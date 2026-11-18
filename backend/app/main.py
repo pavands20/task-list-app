@@ -1,9 +1,7 @@
 """Application entrypoint.
 
-Generated from the approved architecture: one router per component that owns
-endpoints, one route per endpoint the API spec declares. Every generated route
-is a stub that returns a typed placeholder, so the service starts, serves its
-OpenAPI document and passes its tests before a single handler is implemented.
+One router per component that owns endpoints, one route per endpoint the API
+spec declares.
 """
 
 from collections.abc import AsyncIterator
@@ -12,7 +10,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.config import ALLOWED_ORIGINS as _configured_origins
+from app.config import ALLOWED_ORIGINS
 from app.database import SessionLocal
 from app.migrations import run_migrations
 from app.routers import auth as auth_router
@@ -57,7 +55,7 @@ app.include_router(tasks_router.router)
 _dev_origins = ["http://localhost:5173", "http://127.0.0.1:5173"]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_configured_origins or _dev_origins,
+    allow_origins=ALLOWED_ORIGINS or _dev_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -66,5 +64,5 @@ app.add_middleware(
 
 @app.get("/health")
 async def health() -> dict[str, str]:
-    """Liveness probe, and the only route here that is not a stub."""
+    """Liveness probe."""
     return {"status": "ok"}

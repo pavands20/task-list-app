@@ -1,5 +1,4 @@
 // @ts-nocheck -- generated from the approved design under its JS runtime contract; not hand-written TypeScript.
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import React from "react";
 
 import * as UI from "@/lib/ui";
@@ -8,8 +7,6 @@ import { brand } from "@/lib/brand";
 import { apiFetch, ApiError } from "@/lib/api";
 
 const { Empty } = UI;
-
-const { Edit, Filter } = Icons;
 
 const PRODUCT = "Task list app";
 const mix = (colour, percent) => `color-mix(in srgb, ${colour} ${percent}%, transparent)`;
