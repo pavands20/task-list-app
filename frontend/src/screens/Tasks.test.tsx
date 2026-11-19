@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -22,7 +22,7 @@ vi.mock("@/lib/api", () => ({
   API_SECRET_KEY: "",
 }));
 
-import { apiFetch } from "@/lib/api";
+import { apiFetch, ApiError } from "@/lib/api";
 import Tasks from "@/screens/Tasks";
 
 const mockedApiFetch = vi.mocked(apiFetch);
@@ -40,6 +40,10 @@ const task = (overrides = {}) => ({
 describe("Tasks screen", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // clearAllMocks resets call history but not queued mockResolvedValueOnce
+    // responses; a test that fails mid-action can leak its unused responses into
+    // the next test's initial GET. mockReset clears that queue.
+    mockedApiFetch.mockReset();
   });
 
   it("[AC-015] loads the task list from GET /tasks on mount and displays real tasks", async () => {
@@ -166,5 +170,215 @@ describe("Tasks screen", () => {
     ]) {
       expect(body).not.toContain(term);
     }
+  });
+
+  it("[AC-020] clicking the done toggle on an active task calls PATCH /tasks/{id} with is_done=true and the task appears completed", async () => {
+    const user = userEvent.setup();
+    mockedApiFetch.mockResolvedValueOnce([
+      task({ id: "t1", title: "Buy groceries", is_done: false }),
+    ] as never);
+    mockedApiFetch.mockResolvedValueOnce(
+      task({ id: "t1", title: "Buy groceries", is_done: true }) as never,
+    );
+
+    render(
+      <MemoryRouter>
+        <Tasks />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText("Buy groceries");
+    await user.click(screen.getByRole("button", { name: /Mark "Buy groceries" as done/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Done")).toBeInTheDocument();
+    });
+    expect(mockedApiFetch).toHaveBeenCalledWith(
+      "/tasks/t1",
+      expect.objectContaining({
+        method: "PATCH",
+        body: JSON.stringify({ is_done: true }),
+      }),
+    );
+  });
+
+  it("[AC-021] clicking the done toggle on a completed task calls PATCH /tasks/{id} with is_done=false and the task appears active again", async () => {
+    const user = userEvent.setup();
+    mockedApiFetch.mockResolvedValueOnce([
+      task({ id: "t1", title: "Buy groceries", is_done: true }),
+    ] as never);
+    mockedApiFetch.mockResolvedValueOnce(
+      task({ id: "t1", title: "Buy groceries", is_done: false }) as never,
+    );
+
+    render(
+      <MemoryRouter>
+        <Tasks />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText("Buy groceries");
+    await user.click(screen.getByRole("button", { name: /Mark "Buy groceries" as not done/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByText("Done")).not.toBeInTheDocument();
+    });
+    expect(mockedApiFetch).toHaveBeenCalledWith(
+      "/tasks/t1",
+      expect.objectContaining({
+        method: "PATCH",
+        body: JSON.stringify({ is_done: false }),
+      }),
+    );
+  });
+
+  it("[handleSave] calls PATCH /tasks/{id} with the updated title and due_date and updates the task from the response", async () => {
+    const user = userEvent.setup();
+    mockedApiFetch.mockResolvedValueOnce([
+      task({ id: "t1", title: "Buy groceries", due_date: "2026-11-20" }),
+    ] as never);
+    mockedApiFetch.mockResolvedValueOnce(
+      task({ id: "t1", title: "Buy groceries & milk", due_date: "2026-11-22" }) as never,
+    );
+
+    render(
+      <MemoryRouter>
+        <Tasks />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText("Buy groceries");
+    await user.click(screen.getByRole("button", { name: /Edit "Buy groceries"/i }));
+
+    const titleInput = screen.getByLabelText(/Title \(required\)/i);
+    await user.clear(titleInput);
+    await user.type(titleInput, "Buy groceries & milk");
+    fireEvent.change(screen.getByLabelText(/clear to remove/i), {
+      target: { value: "2026-11-22" },
+    });
+    await user.click(screen.getByRole("button", { name: /Save Changes/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Buy groceries & milk")).toBeInTheDocument();
+    });
+    expect(screen.getByText("Due Nov 22, 2026")).toBeInTheDocument();
+    expect(mockedApiFetch).toHaveBeenCalledWith(
+      "/tasks/t1",
+      expect.objectContaining({
+        method: "PATCH",
+        body: JSON.stringify({ title: "Buy groceries & milk", due_date: "2026-11-22" }),
+      }),
+    );
+  });
+
+  it("[handleSave] shows an error message when the API returns 400 for an empty title", async () => {
+    const user = userEvent.setup();
+    mockedApiFetch.mockResolvedValueOnce([task({ id: "t1", title: "Buy groceries" })] as never);
+
+    render(
+      <MemoryRouter>
+        <Tasks />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText("Buy groceries");
+    await user.click(screen.getByRole("button", { name: /Edit "Buy groceries"/i }));
+    const titleInput = screen.getByLabelText(/Title \(required\)/i);
+    await user.clear(titleInput);
+    await user.click(screen.getByRole("button", { name: /Save Changes/i }));
+
+    // Client-side guard fires before the API is called.
+    expect(await screen.findByText(/Title is required/i)).toBeInTheDocument();
+    expect(mockedApiFetch).toHaveBeenCalledTimes(1); // only the initial GET
+  });
+
+  it("[handleDelete] calls DELETE /tasks/{id} and removes the task from the list", async () => {
+    const user = userEvent.setup();
+    mockedApiFetch.mockResolvedValueOnce([task({ id: "t1", title: "Buy groceries" })] as never);
+    mockedApiFetch.mockResolvedValueOnce(undefined as never); // DELETE 204
+
+    render(
+      <MemoryRouter>
+        <Tasks />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText("Buy groceries");
+    await user.click(screen.getByRole("button", { name: /Edit "Buy groceries"/i }));
+    // First click arms the two-step confirm.
+    await user.click(screen.getByRole("button", { name: /Delete Task/i }));
+    // Second click confirms and calls DELETE.
+    await user.click(screen.getByRole("button", { name: /Confirm Delete/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByText("Buy groceries")).not.toBeInTheDocument();
+    });
+    expect(mockedApiFetch).toHaveBeenCalledWith("/tasks/t1", { method: "DELETE" });
+  });
+
+  it("[handleDelete] shows an error message when DELETE fails", async () => {
+    const user = userEvent.setup();
+    mockedApiFetch.mockResolvedValueOnce([task({ id: "t1", title: "Buy groceries" })] as never);
+    mockedApiFetch.mockRejectedValueOnce(
+      new ApiError(404, { detail: "Task not found" }, "DELETE failed: 404"),
+    );
+
+    render(
+      <MemoryRouter>
+        <Tasks />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText("Buy groceries");
+    await user.click(screen.getByRole("button", { name: /Edit "Buy groceries"/i }));
+    await user.click(screen.getByRole("button", { name: /Delete Task/i }));
+    await user.click(screen.getByRole("button", { name: /Confirm Delete/i }));
+
+    expect(await screen.findByText(/Could not delete the task/i)).toBeInTheDocument();
+    // Task remains in the list because the delete failed.
+    expect(screen.getByText("Buy groceries")).toBeInTheDocument();
+  });
+
+  it("[toggleDone] shows an error message when PATCH fails", async () => {
+    const user = userEvent.setup();
+    mockedApiFetch.mockResolvedValueOnce([
+      task({ id: "t1", title: "Buy groceries", is_done: false }),
+    ] as never);
+    mockedApiFetch.mockRejectedValueOnce(
+      new ApiError(500, { detail: "Server error" }, "PATCH failed: 500"),
+    );
+
+    render(
+      <MemoryRouter>
+        <Tasks />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText("Buy groceries");
+    await user.click(screen.getByRole("button", { name: /Mark "Buy groceries" as done/i }));
+
+    expect(await screen.findByText(/Could not update the task/i)).toBeInTheDocument();
+    // Task stays active because the toggle failed.
+    expect(screen.queryByText("Done")).not.toBeInTheDocument();
+  });
+
+  it("[AC-023] loads only the authenticated user's tasks from GET /tasks on mount", async () => {
+    mockedApiFetch.mockResolvedValueOnce([
+      task({ id: "t1", title: "My task" }),
+      task({ id: "t2", title: "Another task", is_done: true }),
+    ] as never);
+
+    render(
+      <MemoryRouter>
+        <Tasks />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("My task")).toBeInTheDocument();
+    expect(await screen.findByText("Another task")).toBeInTheDocument();
+    // Only the single GET /tasks call was made — scoped to the signed-in user
+    // by the bearer token apiFetch sends.
+    expect(mockedApiFetch).toHaveBeenCalledTimes(1);
+    expect(mockedApiFetch).toHaveBeenCalledWith("/tasks");
   });
 });

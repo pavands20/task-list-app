@@ -12,8 +12,8 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models import Task, User
-from app.routers.tasks import create_task, list_tasks
-from app.schemas import TaskCreate
+from app.routers.tasks import create_task, delete_task, list_tasks, patch_task
+from app.schemas import TaskCreate, TaskUpdate
 from app.security import hash_password
 
 
@@ -96,3 +96,104 @@ def test_create_task_assigns_to_authenticated_user(db_session: Session) -> None:
 
     stored = db_session.query(Task).filter_by(id=resp.id).one()
     assert stored.user_id == user.id
+
+
+def test_patch_task_updates_is_done_correctly(db_session: Session) -> None:
+    """Unit: patch_task sets is_done true, then false, leaving title untouched."""
+    user = _make_user(db_session, "patch-done@example.com")
+    created = create_task(TaskCreate(title="Read book"), db=db_session, user=user)
+
+    updated_true = patch_task(
+        task_id=str(created.id), body=TaskUpdate(is_done=True), db=db_session, user=user
+    )
+    assert updated_true.is_done is True
+    assert updated_true.title == "Read book"
+
+    updated_false = patch_task(
+        task_id=str(created.id), body=TaskUpdate(is_done=False), db=db_session, user=user
+    )
+    assert updated_false.is_done is False
+    assert updated_false.title == "Read book"
+
+    stored = db_session.query(Task).filter_by(id=created.id).one()
+    assert stored.is_done is False
+
+
+def test_patch_task_updates_title_and_due_date(db_session: Session) -> None:
+    """Unit: patch_task can update title and due_date as a partial update."""
+    user = _make_user(db_session, "patch-fields@example.com")
+    created = create_task(TaskCreate(title="Old"), db=db_session, user=user)
+
+    updated = patch_task(
+        task_id=str(created.id),
+        body=TaskUpdate(title="New", due_date=date(2026, 12, 31)),
+        db=db_session,
+        user=user,
+    )
+    assert updated.title == "New"
+    assert updated.due_date == date(2026, 12, 31)
+    assert updated.is_done is False
+
+
+def test_patch_task_empty_title_rejected(db_session: Session) -> None:
+    """Unit: patch_task with a whitespace title raises 400 'Title is required'."""
+    user = _make_user(db_session, "patch-empty@example.com")
+    created = create_task(TaskCreate(title="Keep"), db=db_session, user=user)
+
+    with pytest.raises(HTTPException) as exc:
+        patch_task(task_id=str(created.id), body=TaskUpdate(title="   "), db=db_session, user=user)
+    assert exc.value.status_code == 400
+    assert exc.value.detail == "Title is required"
+    # Title unchanged.
+    stored = db_session.query(Task).filter_by(id=created.id).one()
+    assert stored.title == "Keep"
+
+
+def test_patch_task_other_user_returns_404(db_session: Session) -> None:
+    """Unit: patch_task on another user's task raises 404 (NFR-005)."""
+    owner = _make_user(db_session, "patch-owner@example.com")
+    other = _make_user(db_session, "patch-other@example.com")
+    created = create_task(TaskCreate(title="Owner's"), db=db_session, user=owner)
+
+    with pytest.raises(HTTPException) as exc:
+        patch_task(
+            task_id=str(created.id), body=TaskUpdate(is_done=True), db=db_session, user=other
+        )
+    assert exc.value.status_code == 404
+    # Owner's task untouched.
+    assert db_session.query(Task).filter_by(id=created.id).one().is_done is False
+
+
+def test_patch_task_unknown_id_returns_404(db_session: Session) -> None:
+    """Unit: patch_task on a non-existent id raises 404."""
+    user = _make_user(db_session, "patch-missing@example.com")
+    with pytest.raises(HTTPException) as exc:
+        patch_task(
+            task_id="00000000-0000-0000-0000-000000000000",
+            body=TaskUpdate(is_done=True),
+            db=db_session,
+            user=user,
+        )
+    assert exc.value.status_code == 404
+
+
+def test_delete_task_removes_task(db_session: Session) -> None:
+    """Unit: delete_task removes the user's task."""
+    user = _make_user(db_session, "delete-owner@example.com")
+    created = create_task(TaskCreate(title="Bye"), db=db_session, user=user)
+
+    delete_task(task_id=str(created.id), db=db_session, user=user)
+    assert db_session.query(Task).filter_by(id=created.id).count() == 0
+
+
+def test_delete_task_other_user_returns_404(db_session: Session) -> None:
+    """Unit: delete_task on another user's task raises 404 (NFR-005)."""
+    owner = _make_user(db_session, "delete-owner@example.com")
+    other = _make_user(db_session, "delete-other@example.com")
+    created = create_task(TaskCreate(title="Owner's"), db=db_session, user=owner)
+
+    with pytest.raises(HTTPException) as exc:
+        delete_task(task_id=str(created.id), db=db_session, user=other)
+    assert exc.value.status_code == 404
+    # Task still exists.
+    assert db_session.query(Task).filter_by(id=created.id).count() == 1

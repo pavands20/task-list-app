@@ -64,6 +64,20 @@ class TaskCreate(BaseModel):
     due_date: date | None = None
 
 
+class TaskUpdate(BaseModel):
+    """Request body for PATCH /tasks/{task_id}: a partial update.
+
+    All fields are optional (PATCH semantics). ``model_dump(exclude_unset=True)``
+    distinguishes a field the client sent from one it omitted, so a missing
+    field leaves the stored value untouched while an explicit ``null`` for
+    ``due_date`` clears it.
+    """
+
+    title: str | None = None
+    due_date: date | None = None
+    is_done: bool | None = None
+
+
 class TaskResponse(BaseModel):
     """The full task object returned by POST /tasks and GET /tasks."""
 
