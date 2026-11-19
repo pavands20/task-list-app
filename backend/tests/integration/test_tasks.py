@@ -6,8 +6,12 @@ tasks).
 """
 
 import secrets
+from datetime import datetime
 
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
+
+from app.models import Task
 
 
 def _unique_email() -> str:
@@ -422,3 +426,174 @@ def test_patch_tasks_invalid_token_returns_401(client: TestClient) -> None:
         f"/tasks/{task['id']}", json={"is_done": True}, headers=_auth_headers("bad-token")
     )
     assert resp.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# US-014 / AC-029, AC-030: default sort by due date then creation time
+# ---------------------------------------------------------------------------
+
+
+def _stamp_created_at(db: Session, tasks: list[dict], iso_times: list[str]) -> None:
+    """Force distinct ``created_at`` values on the given tasks so the
+    creation-time tiebreak is deterministic regardless of insert timing."""
+    for task, iso in zip(tasks, iso_times, strict=True):
+        row = db.query(Task).filter_by(id=task["id"]).one()
+        row.created_at = datetime.fromisoformat(iso.replace("Z", "+00:00"))
+    db.commit()
+
+
+def test_ac029_tasks_ordered_by_due_date_ascending(client: TestClient) -> None:
+    """AC-029: tasks with different due dates come back ordered by due_date
+    ascending, regardless of the order they were created in."""
+    token, _ = _register_and_get_token(client)
+    h = _auth_headers(token)
+    client.post("/tasks", json={"title": "Late", "due_date": "2026-12-10"}, headers=h)
+    client.post("/tasks", json={"title": "Early", "due_date": "2026-11-01"}, headers=h)
+    client.post("/tasks", json={"title": "Mid", "due_date": "2026-11-15"}, headers=h)
+
+    body = client.get("/tasks", headers=h).json()
+    titles = [t["title"] for t in body]
+    assert titles == ["Early", "Mid", "Late"]
+
+
+def test_ac029_due_date_takes_precedence_over_creation_time(
+    client: TestClient, db_session: Session
+) -> None:
+    """AC-029: due date is the primary sort key — a task created earlier but
+    with a later due date still sorts after one created later with an earlier
+    due date."""
+    token, _ = _register_and_get_token(client)
+    h = _auth_headers(token)
+    earlier_due = client.post(
+        "/tasks", json={"title": "B-earlier-due", "due_date": "2026-11-01"}, headers=h
+    ).json()
+    later_due = client.post(
+        "/tasks", json={"title": "A-later-due", "due_date": "2026-12-01"}, headers=h
+    ).json()
+    # A-later-due was created first, but has the later due date.
+    _stamp_created_at(
+        db_session,
+        [earlier_due, later_due],
+        ["2026-11-10T10:00:00Z", "2026-11-01T10:00:00Z"],
+    )
+
+    body = client.get("/tasks", headers=h).json()
+    titles = [t["title"] for t in body]
+    assert titles == ["B-earlier-due", "A-later-due"]
+
+
+def test_ac030_tasks_same_due_date_ordered_by_creation_time(
+    client: TestClient, db_session: Session
+) -> None:
+    """AC-030: tasks sharing a due date are ordered among themselves by
+    creation time ascending."""
+    token, _ = _register_and_get_token(client)
+    h = _auth_headers(token)
+    first = client.post(
+        "/tasks", json={"title": "First", "due_date": "2026-11-20"}, headers=h
+    ).json()
+    second = client.post(
+        "/tasks", json={"title": "Second", "due_date": "2026-11-20"}, headers=h
+    ).json()
+    third = client.post(
+        "/tasks", json={"title": "Third", "due_date": "2026-11-20"}, headers=h
+    ).json()
+    # Force a creation-time order that differs from any title/id order.
+    _stamp_created_at(
+        db_session,
+        [first, second, third],
+        ["2026-11-10T10:00:00Z", "2026-11-11T10:00:00Z", "2026-11-12T10:00:00Z"],
+    )
+
+    body = client.get("/tasks", headers=h).json()
+    titles = [t["title"] for t in body]
+    assert titles == ["First", "Second", "Third"]
+    # created_at is strictly ascending within the shared due date.
+    created = [t["created_at"] for t in body]
+    assert created == sorted(created)
+
+
+def test_ac030_tasks_without_due_date_ordered_by_creation_time(
+    client: TestClient, db_session: Session
+) -> None:
+    """AC-030: tasks without a due date are ordered among themselves by
+    creation time ascending (not by title or id)."""
+    token, _ = _register_and_get_token(client)
+    h = _auth_headers(token)
+    no_due_a = client.post("/tasks", json={"title": "NoDue-A"}, headers=h).json()
+    no_due_b = client.post("/tasks", json={"title": "NoDue-B"}, headers=h).json()
+    no_due_c = client.post("/tasks", json={"title": "NoDue-C"}, headers=h).json()
+    # Make NoDue-B the oldest, NoDue-A middle, NoDue-C newest — proving the
+    # order follows creation time, not title or insertion order.
+    _stamp_created_at(
+        db_session,
+        [no_due_a, no_due_b, no_due_c],
+        ["2026-11-05T10:00:00Z", "2026-11-01T10:00:00Z", "2026-11-09T10:00:00Z"],
+    )
+
+    body = client.get("/tasks", headers=h).json()
+    titles = [t["title"] for t in body]
+    assert titles == ["NoDue-B", "NoDue-A", "NoDue-C"]
+
+
+def test_ac030_no_due_date_tasks_follow_dated_tasks(
+    client: TestClient, db_session: Session
+) -> None:
+    """AC-030 / default sort: tasks with a due date come before tasks without
+    one, and each block respects its own ordering (due date asc, then creation
+    time). PostgreSQL sorts NULLS LAST for ascending order, which matches the
+    frontend's client-side sort and the "most time-relevant first" intent."""
+    token, _ = _register_and_get_token(client)
+    h = _auth_headers(token)
+    dated = client.post(
+        "/tasks", json={"title": "Dated", "due_date": "2026-11-20"}, headers=h
+    ).json()
+    no_due_1 = client.post("/tasks", json={"title": "NoDue-1"}, headers=h).json()
+    no_due_2 = client.post("/tasks", json={"title": "NoDue-2"}, headers=h).json()
+    # NoDue-2 created before NoDue-1: the no-due-date block is by creation time.
+    _stamp_created_at(
+        db_session,
+        [dated, no_due_1, no_due_2],
+        ["2026-11-01T10:00:00Z", "2026-11-05T10:00:00Z", "2026-11-03T10:00:00Z"],
+    )
+
+    body = client.get("/tasks", headers=h).json()
+    titles = [t["title"] for t in body]
+    assert titles == ["Dated", "NoDue-2", "NoDue-1"]
+
+
+def test_ac029_ac030_full_default_sort_mix(client: TestClient, db_session: Session) -> None:
+    """AC-029 + AC-030 together: a mix of different due dates, a shared due
+    date and no-due-date tasks comes back in one consistent default order —
+    due date ascending, creation time as the tiebreak, no-due-date last."""
+    token, _ = _register_and_get_token(client)
+    h = _auth_headers(token)
+    late = client.post("/tasks", json={"title": "Late", "due_date": "2026-12-10"}, headers=h).json()
+    early = client.post(
+        "/tasks", json={"title": "Early", "due_date": "2026-11-01"}, headers=h
+    ).json()
+    same_a = client.post(
+        "/tasks", json={"title": "Same-A", "due_date": "2026-11-20"}, headers=h
+    ).json()
+    same_b = client.post(
+        "/tasks", json={"title": "Same-B", "due_date": "2026-11-20"}, headers=h
+    ).json()
+    no_due_a = client.post("/tasks", json={"title": "NoDue-A"}, headers=h).json()
+    no_due_b = client.post("/tasks", json={"title": "NoDue-B"}, headers=h).json()
+    # Same-B is older than Same-A; NoDue-B is older than NoDue-A.
+    _stamp_created_at(
+        db_session,
+        [late, early, same_a, same_b, no_due_a, no_due_b],
+        [
+            "2026-11-01T10:00:00Z",
+            "2026-11-02T10:00:00Z",
+            "2026-11-12T10:00:00Z",
+            "2026-11-11T10:00:00Z",
+            "2026-11-21T10:00:00Z",
+            "2026-11-20T10:00:00Z",
+        ],
+    )
+
+    body = client.get("/tasks", headers=h).json()
+    titles = [t["title"] for t in body]
+    assert titles == ["Early", "Same-B", "Same-A", "Late", "NoDue-B", "NoDue-A"]

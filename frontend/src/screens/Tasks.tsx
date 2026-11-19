@@ -1,12 +1,10 @@
 // @ts-nocheck -- generated from the approved design under its JS runtime contract; not hand-written TypeScript.
 import React from "react";
 
-import * as UI from "@/lib/ui";
+import { Empty } from "@/lib/ui";
 import { Icons } from "@/lib/icons";
 import { brand } from "@/lib/brand";
 import { apiFetch, ApiError } from "@/lib/api";
-
-const { Empty } = UI;
 
 const PRODUCT = "Task list app";
 const mix = (colour, percent) => `color-mix(in srgb, ${colour} ${percent}%, transparent)`;
@@ -23,6 +21,15 @@ function formatDate(d) {
   return (
     "Due " + dt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
   );
+}
+
+/* A 400 carries a validation detail string; anything else is a generic failure. */
+function apiErrorMessage(err, badRequestFallback, genericFallback) {
+  if (err instanceof ApiError && err.status === 400) {
+    const detail = err.body && err.body.detail;
+    return typeof detail === "string" ? detail : badRequestFallback;
+  }
+  return genericFallback;
 }
 
 export default function Screen() {
@@ -46,13 +53,14 @@ export default function Screen() {
   /* US-007: load the user's real tasks from the API on screen mount */
   React.useEffect(() => {
     let active = true;
-    Promise.resolve(apiFetch("/tasks"))
-      .then((data) => {
+    void (async () => {
+      try {
+        const data = await apiFetch("/tasks");
         if (active && Array.isArray(data)) setTasks(data);
-      })
-      .catch(() => {
+      } catch {
         // Load failure leaves the list empty; the empty state guides the user.
-      });
+      }
+    })();
     return () => {
       active = false;
     };
@@ -63,10 +71,8 @@ export default function Screen() {
 
   /* US-014: sort by due date ascending (nulls last), then by created_at */
   const sorted = [...tasks].sort((a, b) => {
-    if (a.due_date && b.due_date) {
-      if (a.due_date !== b.due_date) return a.due_date.localeCompare(b.due_date);
-      return a.created_at.localeCompare(b.created_at);
-    }
+    if (a.due_date && b.due_date && a.due_date !== b.due_date)
+      return a.due_date.localeCompare(b.due_date);
     if (a.due_date && !b.due_date) return -1;
     if (!a.due_date && b.due_date) return 1;
     return a.created_at.localeCompare(b.created_at);
@@ -102,12 +108,9 @@ export default function Screen() {
       setNewDue((prev) => (prev === submittedDue ? "" : prev));
       setAddError("");
     } catch (err) {
-      if (err instanceof ApiError && err.status === 400) {
-        const detail = err.body && err.body.detail;
-        setAddError(typeof detail === "string" ? detail : "Title is required");
-      } else {
-        setAddError("Could not create the task. Please try again.");
-      }
+      setAddError(
+        apiErrorMessage(err, "Title is required", "Could not create the task. Please try again."),
+      );
     } finally {
       setSubmitting(false);
     }
@@ -166,12 +169,9 @@ export default function Screen() {
       await patchTask(editing.id, { title: editTitle.trim(), due_date: editDue || null });
       closeEdit();
     } catch (err) {
-      if (err instanceof ApiError && err.status === 400) {
-        const detail = err.body && err.body.detail;
-        setEditError(typeof detail === "string" ? detail : "Title is required.");
-      } else {
-        setEditError("Could not save the task. Please try again.");
-      }
+      setEditError(
+        apiErrorMessage(err, "Title is required.", "Could not save the task. Please try again."),
+      );
     } finally {
       setSaving(false);
     }
@@ -223,11 +223,29 @@ export default function Screen() {
   }, [editing]);
 
   return (
-    <div className="bg-white" style={{ color: brand.primaryColor, fontFamily: brand.fontBody }}>
+    <div
+      className="bg-white mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-8"
+      style={{ color: brand.primaryColor, fontFamily: brand.fontBody }}
+    >
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
         @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
         button:focus-visible, input:focus-visible { outline: 2px solid ${brand.accentColor}; outline-offset: 1px; }
+        /* NFR-008: reflow the task table into a stacked card layout on small
+           screens so the list never needs horizontal scrolling. The thead is
+           dropped (each cell's content is self-describing) and each row becomes
+           a flex card: checkbox + title share the first line, due date and the
+           edit button stack full-width below. */
+        @media (max-width: 639px) {
+          .tasks-table, .tasks-table tbody { display: block; width: 100%; }
+          .tasks-table thead { display: none; }
+          .tasks-table tr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 12px 0; }
+          .tasks-table td { display: block; text-align: left; }
+          .tasks-table td.cell-check { flex: 0 0 auto; padding-left: 0; }
+          .tasks-table td.cell-title { flex: 1 1 0; min-width: 0; }
+          .tasks-table td.cell-due { flex: 0 0 100%; }
+          .tasks-table td.cell-edit { flex: 0 0 100%; }
+        }
       `}</style>
 
       {/* Row 1 — page title */}
@@ -265,7 +283,7 @@ export default function Screen() {
               if (addError) setAddError("");
             }}
             onKeyDown={(e) => {
-              if (e.key === "Enter") handleAdd();
+              if (e.key === "Enter") void handleAdd();
             }}
             placeholder="What needs to be done?"
             className="h-9 w-full bg-white px-3 text-sm outline-none"
@@ -368,7 +386,10 @@ export default function Screen() {
         </div>
       ) : (
         <div data-wf="b-3-0" className="overflow-x-auto" style={{ borderTop: rule }}>
-          <table className="w-full text-[13px]" style={{ fontVariantNumeric: "tabular-nums" }}>
+          <table
+            className="tasks-table w-full text-[13px]"
+            style={{ fontVariantNumeric: "tabular-nums" }}
+          >
             <thead>
               <tr
                 className="text-left text-[11px] uppercase tracking-[0.14em]"
@@ -396,7 +417,7 @@ export default function Screen() {
                   style={{ borderBottom: hair }}
                   data-wf={`i-3-0-${idx}`}
                 >
-                  <td className="py-2 pl-2">
+                  <td className="cell-check py-2 pl-2">
                     <button
                       type="button"
                       data-wf={`i-3-0-${idx}`}
@@ -439,7 +460,7 @@ export default function Screen() {
                       )}
                     </button>
                   </td>
-                  <td className="py-2">
+                  <td className="cell-title py-2">
                     <span
                       className={task.is_done ? "line-through" : ""}
                       style={{ color: task.is_done ? brand.neutralColor : brand.primaryColor }}
@@ -456,12 +477,12 @@ export default function Screen() {
                     )}
                   </td>
                   <td
-                    className="py-2"
+                    className="cell-due py-2"
                     style={{ color: task.due_date ? brand.primaryColor : brand.neutralColor }}
                   >
                     {formatDate(task.due_date)}
                   </td>
-                  <td className="py-2 text-right">
+                  <td className="cell-edit py-2 text-right">
                     <button
                       type="button"
                       data-wf={`i-3-0-${idx}`}

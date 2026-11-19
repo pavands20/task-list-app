@@ -82,7 +82,9 @@ def patch_task(task_id: str, body: TaskUpdate, db: DbSession, user: CurrentUser)
         task.title = title
     if "due_date" in data:
         task.due_date = data["due_date"]
-    if "is_done" in data and data["is_done"] is not None:
+    if "is_done" in data:
+        if data["is_done"] is None:
+            raise HTTPException(status_code=400, detail="is_done must be a boolean, not null")
         task.is_done = data["is_done"]
 
     db.commit()

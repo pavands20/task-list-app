@@ -6,7 +6,6 @@ them; production overrides every one via the environment.
 """
 
 import os
-from pathlib import Path
 
 # --- Database -------------------------------------------------------------
 
@@ -17,18 +16,6 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./app.db")
 # Comma-separated list of frontend origins allowed by the API. In development
 # that is the Vite dev server; when deployed, the platform injects the real URL.
 ALLOWED_ORIGINS = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()]
-
-# --- Shared API bearer (public; never sign anything with it) ---------------
-
-SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key")
-
-# --- Private signing key (set in production; used for tokens/sessions) -----
-
-JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev-jwt-secret-key")
-
-# --- Writable directory that survives redeploys ---------------------------
-
-MEDIA_ROOT = Path(os.getenv("MEDIA_ROOT", "./media"))
 
 # --- SendGrid -------------------------------------------------------------
 
