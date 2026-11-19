@@ -5,7 +5,7 @@
 <!-- sdlc:auto:start overview -->
 A simple task list app: a signed-in user can add, edit, complete and delete their own tasks, with a title, optional due date and done flag. React frontend, FastAPI backend, PostgreSQL. No teams, no sharing, no notifications.
 
-**Documentation version:** v4
+**Documentation version:** v5
 <!-- sdlc:auto:end overview -->
 
 ## Contents
@@ -25,12 +25,12 @@ A simple task list app: a signed-in user can add, edit, complete and delete thei
 | [Decisions (ADRs)](architecture/adr/README.md) | 4 decisions |
 | [Sprint plan](development/sprint-plan.md) | 4 sprints |
 | [Developer guide](development/developer-guide.md) | generated |
-| [API reference](development/api-reference.md) | 5 routes |
+| [API reference](development/api-reference.md) | 10 routes |
 | [Test report](testing/test-report.md) | not run yet |
-| [Tests](testing/test-cases.md) | 80 tests |
+| [Tests](testing/test-cases.md) | 156 tests |
 | [Deployment guide](deployment/deployment-guide.md) | deployed |
 | [Runbook](deployment/runbook.md) | deployed |
 | [Release notes](deployment/release-notes.md) | 1 release |
 | [Traceability matrix](traceability-matrix.md) | 15 requirements |
-| [Changelog](CHANGELOG.md) | 4 versions |
+| [Changelog](CHANGELOG.md) | 5 versions |
 <!-- sdlc:auto:end contents -->

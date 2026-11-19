@@ -7,95 +7,90 @@ _Up to date._
 <!-- sdlc:auto:end status -->
 
 <!-- sdlc:auto:start source -->
-Generated from commit `74e671d` · model `claude-sonnet-5`
+Generated from commit `9aefefc` · model `claude-sonnet-5`
 <!-- sdlc:auto:end source -->
 
 <!-- sdlc:auto:start overview -->
-A simple task list application where signed-in users can add, edit, complete, and delete their own tasks (title, optional due date, done flag). Built as a monorepo with a React 19 + Vite SPA frontend and a FastAPI 0.115 backend backed by PostgreSQL 16 (SQLite by default for local development). Authentication uses opaque bearer session tokens with bcrypt password hashing. Schema changes go through Alembic migrations applied on startup. The frontend currently renders seeded sample data and includes a generated API client seam for wiring real endpoints. Deployment is handled via a GitHub Actions workflow that pushes a backend Docker image to AWS ECR and deploys the frontend to AWS Amplify.
+A task list application with a FastAPI backend (Python 3.12, SQLAlchemy, PostgreSQL/SQLite) and a Vite + React 19 frontend SPA. Authenticated users can add, edit, complete, and delete their own tasks with a title, optional due date, and done flag. The backend exposes auth endpoints (register, login, logout, password reset) and CRUD task endpoints, while the frontend provides screens for sign-in, registration, password reset, account, and task management. The two run as separate services orchestrated via docker-compose for the database and deployed through a GitHub Actions workflow to AWS (ECR + Amplify).
 <!-- sdlc:auto:end overview -->
 
 <!-- sdlc:auto:start prerequisites -->
 - Node.js 20+
 - Python 3.12+
-- pip
-- PostgreSQL 16 (optional for local dev; SQLite is used by default)
+- PostgreSQL 16 (or use the default SQLite for local dev)
+- Docker and Docker Compose (optional, for PostgreSQL)
 <!-- sdlc:auto:end prerequisites -->
 
 <!-- sdlc:auto:start setup -->
-1. Clone the repository
-2. cd frontend && npm install
-3. cd ../backend && python -m venv .venv && source .venv/bin/activate
-4. pip install -r requirements.txt
-5. cp .env.example .env and fill in any required values
-6. uvicorn app.main:app --reload  (from the backend/ directory)
-7. In a new terminal, cd frontend && npm run dev
+1. Clone the repository and cd into the project root.
+2. Copy .env.example to .env and fill in any required placeholders such as <database-url> and <sendgrid-api-key>.
+3. Backend: cd backend && python -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
+4. Optional PostgreSQL: docker compose up -d db to start a local PostgreSQL 16 container.
+5. Backend dev: cd backend && uvicorn app.main:app --reload (defaults to SQLite if DATABASE_URL is unset)
+6. Frontend: cd frontend && npm install
+7. Frontend dev: cd frontend && npm run dev
 <!-- sdlc:auto:end setup -->
 
 <!-- sdlc:auto:start run -->
 | Name | Command | Description |
 |---|---|---|
-| frontend dev | `cd frontend && npm run dev` | Starts the Vite dev server for the React SPA |
-| frontend build | `cd frontend && npm run build` | Bundles the frontend for production (does not typecheck) |
-| frontend preview | `cd frontend && npm run preview` | Serves the production build locally |
-| frontend typecheck | `cd frontend && npm run typecheck` | Runs tsc --noEmit for type checking |
-| frontend lint | `cd frontend && npm run lint` | Runs ESLint over the whole frontend |
-| frontend lint:fix | `cd frontend && npm run lint:fix` | Runs ESLint and applies auto-fixes |
-| frontend format | `cd frontend && npm run format` | Formats the frontend with Prettier |
-| frontend unit tests | `cd frontend && npm test` | Runs Vitest component tests |
-| frontend e2e tests | `cd frontend && npm run test:e2e` | Runs Playwright acceptance tests (install browser first with npm run test:e2e:install) |
-| backend dev | `cd backend && uvicorn app.main:app --reload` | Starts the FastAPI backend with hot reload |
-| backend tests | `cd backend && pytest` | Runs the backend pytest suite |
-| backend lint | `cd backend && ruff check .` | Lints the backend with Ruff |
-| backend format | `cd backend && ruff format .` | Formats the backend with Ruff |
-| docker compose up | `docker compose up` | Starts a local PostgreSQL 16 container (user/db: app/app) |
+| Backend dev server | `cd backend && uvicorn app.main:app --reload` | Starts the FastAPI backend on http://localhost:8000 with hot reload. |
+| Frontend dev server | `cd frontend && npm run dev` | Starts the Vite dev server for the React SPA on http://localhost:5173. |
+| Frontend build | `cd frontend && npm run build` | Bundles the frontend for production (does not typecheck). |
+| Frontend preview | `cd frontend && npm run preview` | Serves the built frontend locally. |
+| Docker Compose DB | `docker compose up -d db` | Starts a local PostgreSQL 16 container on port 5432. |
+| Backend Docker build | `cd backend && docker build -t tasklist-api .` | Builds the backend Docker image using the provided Dockerfile. |
 <!-- sdlc:auto:end run -->
 
 <!-- sdlc:auto:start structure -->
 | Path | Purpose |
 |---|---|
-| `backend/` | FastAPI service: app code, routers, models, schemas, Alembic migrations, Dockerfile, tests |
-| `backend/app/` | Application package: main.py entrypoint, config, database, models, schemas, auth, security, seed, migrations |
-| `backend/app/routers/` | API route modules: auth.py (register/login) and tasks.py (create/list tasks) |
-| `backend/alembic/` | Alembic schema migration configuration and versions |
-| `backend/tests/` | Pytest tests split into unit/ and integration/ |
-| `frontend/` | Vite + React 19 SPA: screens, API client, UI components, e2e tests |
-| `frontend/src/` | Source code: screens/, lib/ (api, ui, icons, brand, navigate), App.tsx router, main.tsx entry |
-| `frontend/src/screens/` | One module per approved screen: Tasks, SignIn, Register, ForgotPassword, ResetPassword, Account |
-| `frontend/src/lib/` | Shared utilities: api.ts (fetch wrapper + session token), ui.tsx, icons.tsx, brand.ts, navigate.ts |
-| `frontend/e2e/` | Playwright acceptance test specs |
-| `.github/workflows/` | CI/CD: deploy.yml builds and deploys backend image and frontend bundle on push to main |
-| `.devcontainer/` | Dev container configuration |
+| `frontend/` | Vite + React 19 SPA: screens (sign-in, register, tasks, account, password reset), shared UI/icon/brand libraries, API client, and Playwright e2e tests. |
+| `frontend/src/` | Application source: App.tsx route shell, screens/ for page modules, lib/ for api client and UI vocabulary. |
+| `frontend/e2e/` | Playwright acceptance test specs covering auth, sign-out, password reset, and task flows. |
+| `backend/` | FastAPI service: app package with routers, models, schemas, auth, config, database, migrations, seed; Alembic migrations; tests; Dockerfile; requirements.txt. |
+| `backend/app/` | Core application: main.py entrypoint, routers/ for auth and tasks, models.py, schemas.py, database.py, auth.py, security.py, config.py, seed.py. |
+| `backend/app/routers/` | API route modules: auth.py (register, login, logout, password reset) and tasks.py (CRUD for tasks). |
+| `backend/alembic/` | Alembic schema migration scripts and configuration. |
+| `backend/tests/` | Pytest test suite split into unit/ and integration/ tests for auth, tasks, password reset, and health. |
+| `.github/workflows/` | CI/CD: deploy.yml builds and pushes the backend image to ECR, builds the frontend, and deploys to AWS Amplify on push to main. |
+| `.devcontainer/` | Dev container configuration for VS Code Remote Containers. |
 <!-- sdlc:auto:end structure -->
 
 <!-- sdlc:auto:start conventions -->
-- Backend: one router per component owning endpoints (auth, tasks), registered in main.py
-- Backend: SQLAlchemy declarative models inheriting from a shared Base; UUID primary keys; cascade deletes on user-owned entities
-- Backend: Pydantic schemas pair request/response models per entity; field defaults surface missing fields as 400 rather than 422
-- Backend: password hashing via bcrypt/passlib; session tokens stored as hashes, returned as opaque bearer tokens
-- Backend: schema changes go through Alembic migrations applied at startup via run_migrations(), not create_all()
-- Backend: SQLite by default for zero-config local dev; DATABASE_URL switches to PostgreSQL in deployed environments
-- Backend: CIText type decorator for case-insensitive email on PostgreSQL, plain String fallback on SQLite
-- Frontend: one module per screen in src/screens/; App.tsx holds the route table and navigation shell
-- Frontend: apiFetch wrapper sends Bearer token (session or shared secret) on every request; session token persisted in localStorage
-- Frontend: protected routes wrapped in RequireAuth which redirects to /sign-in when no session token is present
-- Frontend: component tests live beside components (src/**); e2e specs in e2e/ using Playwright
-- Frontend: @ path alias maps to ./src via tsconfig and vite resolve.alias
+- Backend: one router per architecture component (auth, tasks), each prefixed and tagged.
+- Backend: SQLAlchemy models inherit a shared DeclarativeBase; UUIDs as primary keys; CITEXT for case-insensitive email on PostgreSQL, fallback String on SQLite.
+- Backend: Pydantic schemas with field defaults to empty string so missing fields yield 400 not 422; TaskUpdate uses exclude_unset for PATCH semantics.
+- Backend: session tokens stored as hashes, never plaintext; bcrypt for password hashing via passlib.
+- Backend: cross-user task access returns 404 (not 403) to avoid leaking existence.
+- Backend: schema changes go through Alembic migrations, not create_all; migrations and seeding run on app startup via lifespan.
+- Frontend: one module per screen in src/screens/; route table and nav shell in App.tsx.
+- Frontend: API client in src/lib/api.ts uses Bearer token from localStorage; 401 with a session token clears it and redirects to /sign-in.
+- Frontend: VITE_API_BASE_URL and VITE_API_SECRET_KEY are baked at build time; fallback to http://localhost:8000.
+- Frontend: component tests in src/ scoped to *.test.tsx; Playwright e2e specs in e2e/.
+- Frontend: Tailwind CSS v4 via @tailwindcss/vite; brand tokens in lib/brand.ts and CSS variables in index.css.
 <!-- sdlc:auto:end conventions -->
 
 <!-- sdlc:auto:start testing -->
 | Name | Command | Description |
 |---|---|---|
-| backend unit & integration | `cd backend && pytest` | Runs all backend tests under tests/ (unit and integration) |
-| frontend unit tests | `cd frontend && npm test` | Runs Vitest component tests in src/ |
-| frontend e2e tests | `cd frontend && npm run test:e2e` | Runs Playwright acceptance tests; boots backend and preview server automatically unless E2E_BASE_URL is set |
+| Backend unit & integration tests | `cd backend && pytest` | Runs the pytest suite (unit/ and integration/) configured via pytest.ini with pythonpath=. |
+| Backend lint | `cd backend && ruff check .` | Lints the backend code with ruff. |
+| Backend format check | `cd backend && ruff format .` | Formats backend code with ruff. |
+| Frontend unit tests | `cd frontend && npm run test` | Runs Vitest component tests in src/. |
+| Frontend lint | `cd frontend && npm run lint` | Runs ESLint over the frontend project. |
+| Frontend typecheck | `cd frontend && npm run typecheck` | Runs tsc --noEmit for type checking. |
+| Frontend format | `cd frontend && npm run format` | Formats the frontend with Prettier. |
+| Frontend e2e tests | `cd frontend && npm run test:e2e` | Runs Playwright acceptance tests; boots backend and frontend automatically unless E2E_BASE_URL is set. |
+| Install Playwright browser | `cd frontend && npm run test:e2e:install` | Installs the Chromium browser for Playwright e2e tests. |
 <!-- sdlc:auto:end testing -->
 
 <!-- sdlc:auto:start troubleshooting -->
 | Problem | Solution |
 |---|---|
-| Backend import errors when running pytest from backend/ | pytest.ini sets pythonpath = . so run pytest from the backend/ directory, not a subdirectory |
-| CORS errors when frontend calls backend in development | ALLOWED_ORIGINS defaults to localhost:5173; ensure the Vite dev server is running on that port or set ALLOWED_ORIGINS in your environment |
-| Playwright e2e tests fail because browser is not installed | Run npm run test:e2e:install first to fetch the Chromium browser |
-| Backend cannot connect to PostgreSQL | Set DATABASE_URL to a valid PostgreSQL connection string, or run docker compose up to start a local PostgreSQL instance on port 5432 |
-| vite build succeeds but deployed app calls localhost | VITE_API_BASE_URL must be set at build time; it is baked into the bundle and cannot be changed at runtime |
+| Backend fails to connect to database on first run | If DATABASE_URL is unset, the backend defaults to a local SQLite file. To use PostgreSQL, set DATABASE_URL to a valid connection string and run docker compose up -d db to start the local Postgres container. |
+| CORS errors when frontend calls backend in dev | The backend allows http://localhost:5173 and http://127.0.0.1:5173 by default. If you use a different dev port, set ALLOWED_ORIGINS in the backend environment to include your frontend origin. |
+| Playwright e2e tests fail with missing browser | Run npm run test:e2e:install to install the Chromium browser before running npm run test:e2e. |
+| pytest cannot import app modules | Run pytest from the backend/ directory; pytest.ini sets pythonpath=. so imports resolve correctly. |
+| Password reset emails not sent in local dev | send_reset_email is skipped when SENDGRID_API_KEY is empty. Set SENDGRID_API_KEY to a valid key to enable email sending. |
 <!-- sdlc:auto:end troubleshooting -->

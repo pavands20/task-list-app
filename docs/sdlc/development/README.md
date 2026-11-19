@@ -3,35 +3,35 @@
 > Maintained by QuorQ AI SDLC. Text between `sdlc:auto` markers is regenerated; anything outside them is yours and is kept.
 
 <!-- sdlc:auto:start narrative -->
-### US-001 · approved · source: dev:US-001
+### DEV-US-003 · approved · source: dev:US-003
 
-Self-register with email and password. Delivered as part of the development run.
+Sign out and session expiry functionality was delivered.
 
-Ticket US-001 implements user self-registration using email and password. Status: delivered. Commit: a6c2fc7ff6683c758cdd7a67de9651137d23d3b1.
+Ticket US-003 (Sign out and session expiry) status=delivered, commit=0dec605bc29cb3693e786881ab02df88f45bc3bf. Part of the completed development run.
 
-**Related:** US-001
+**Related:** US-003
 
-### US-002 · approved · source: dev:US-002
+### DEV-US-004 · approved · source: dev:US-004
 
-Sign in to a personal account. Delivered as part of the development run.
+Reset a forgotten password by email functionality was delivered.
 
-Ticket US-002 implements signing in to a personal account. Status: delivered. Commit: a6c2fc7ff6683c758cdd7a67de9651137d23d3b1.
+Ticket US-004 (Reset a forgotten password by email) status=delivered, commit=0dec605bc29cb3693e786881ab02df88f45bc3bf. Part of the completed development run.
 
-**Related:** US-002
+**Related:** US-004
 
-### US-006 · approved · source: dev:US-006
+### DEV-US-009 · approved · source: dev:US-009
 
-Use the app free of charge. Delivered as part of the development run.
+Mark a task done or not done functionality was delivered.
 
-Ticket US-006 implements free-of-charge usage of the app. Status: delivered. Commit: a6c2fc7ff6683c758cdd7a67de9651137d23d3b1.
+Ticket US-009 (Mark a task done or not done) status=delivered, commit=0dec605bc29cb3693e786881ab02df88f45bc3bf. Part of the completed development run.
 
-**Related:** US-006
+**Related:** US-009
 
-### US-007 · approved · source: dev:US-007
+### DEV-US-011 · approved · source: dev:US-011
 
-Add a task with a required title and optional due date. Delivered as part of the development run.
+Access only the signed-in user's own tasks functionality was delivered.
 
-Ticket US-007 implements task creation with a required title and an optional due date. Status: delivered. Commit: a6c2fc7ff6683c758cdd7a67de9651137d23d3b1.
+Ticket US-011 (Access only my own tasks) status=delivered, commit=0dec605bc29cb3693e786881ab02df88f45bc3bf. Part of the completed development run.
 
-**Related:** US-007
+**Related:** US-011
 <!-- sdlc:auto:end narrative -->
