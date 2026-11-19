@@ -326,6 +326,48 @@ describe("Tasks screen", () => {
     expect(mockedApiFetch).toHaveBeenCalledTimes(1); // only the initial GET
   });
 
+  it("[handleAdd] shows the API validation detail when POST /tasks returns 400", async () => {
+    const user = userEvent.setup();
+    mockedApiFetch.mockResolvedValueOnce([] as never); // initial GET
+    mockedApiFetch.mockRejectedValueOnce(
+      new ApiError(400, { detail: "Title must be at least 3 characters" }, "POST failed: 400"),
+    );
+
+    render(
+      <MemoryRouter>
+        <Tasks />
+      </MemoryRouter>,
+    );
+
+    await user.type(screen.getByPlaceholderText("What needs to be done?"), "Ab");
+    await user.click(screen.getByRole("button", { name: /Add Task/i }));
+
+    expect(await screen.findByText("Title must be at least 3 characters")).toBeInTheDocument();
+  });
+
+  it("[handleSave] shows the API validation detail when PATCH /tasks/{id} returns 400", async () => {
+    const user = userEvent.setup();
+    mockedApiFetch.mockResolvedValueOnce([task({ id: "t1", title: "Buy groceries" })] as never);
+    mockedApiFetch.mockRejectedValueOnce(
+      new ApiError(400, { detail: "Title is too long" }, "PATCH failed: 400"),
+    );
+
+    render(
+      <MemoryRouter>
+        <Tasks />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText("Buy groceries");
+    await user.click(screen.getByRole("button", { name: /Edit "Buy groceries"/i }));
+    const titleInput = screen.getByLabelText(/Title \(required\)/i);
+    await user.clear(titleInput);
+    await user.type(titleInput, "New title");
+    await user.click(screen.getByRole("button", { name: /Save Changes/i }));
+
+    expect(await screen.findByText("Title is too long")).toBeInTheDocument();
+  });
+
   it("[handleDelete] calls DELETE /tasks/{id} and removes the task from the list", async () => {
     const user = userEvent.setup();
     mockedApiFetch.mockResolvedValueOnce([task({ id: "t1", title: "Buy groceries" })] as never);

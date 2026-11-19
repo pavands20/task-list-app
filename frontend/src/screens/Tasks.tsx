@@ -1,12 +1,10 @@
 // @ts-nocheck -- generated from the approved design under its JS runtime contract; not hand-written TypeScript.
 import React from "react";
 
-import * as UI from "@/lib/ui";
+import { Empty } from "@/lib/ui";
 import { Icons } from "@/lib/icons";
 import { brand } from "@/lib/brand";
 import { apiFetch, ApiError } from "@/lib/api";
-
-const { Empty } = UI;
 
 const PRODUCT = "Task list app";
 const mix = (colour, percent) => `color-mix(in srgb, ${colour} ${percent}%, transparent)`;
@@ -23,6 +21,15 @@ function formatDate(d) {
   return (
     "Due " + dt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
   );
+}
+
+/* A 400 carries a validation detail string; anything else is a generic failure. */
+function apiErrorMessage(err, badRequestFallback, genericFallback) {
+  if (err instanceof ApiError && err.status === 400) {
+    const detail = err.body && err.body.detail;
+    return typeof detail === "string" ? detail : badRequestFallback;
+  }
+  return genericFallback;
 }
 
 export default function Screen() {
@@ -46,7 +53,7 @@ export default function Screen() {
   /* US-007: load the user's real tasks from the API on screen mount */
   React.useEffect(() => {
     let active = true;
-    Promise.resolve(apiFetch("/tasks"))
+    apiFetch("/tasks")
       .then((data) => {
         if (active && Array.isArray(data)) setTasks(data);
       })
@@ -63,10 +70,8 @@ export default function Screen() {
 
   /* US-014: sort by due date ascending (nulls last), then by created_at */
   const sorted = [...tasks].sort((a, b) => {
-    if (a.due_date && b.due_date) {
-      if (a.due_date !== b.due_date) return a.due_date.localeCompare(b.due_date);
-      return a.created_at.localeCompare(b.created_at);
-    }
+    if (a.due_date && b.due_date && a.due_date !== b.due_date)
+      return a.due_date.localeCompare(b.due_date);
     if (a.due_date && !b.due_date) return -1;
     if (!a.due_date && b.due_date) return 1;
     return a.created_at.localeCompare(b.created_at);
@@ -102,12 +107,9 @@ export default function Screen() {
       setNewDue((prev) => (prev === submittedDue ? "" : prev));
       setAddError("");
     } catch (err) {
-      if (err instanceof ApiError && err.status === 400) {
-        const detail = err.body && err.body.detail;
-        setAddError(typeof detail === "string" ? detail : "Title is required");
-      } else {
-        setAddError("Could not create the task. Please try again.");
-      }
+      setAddError(
+        apiErrorMessage(err, "Title is required", "Could not create the task. Please try again."),
+      );
     } finally {
       setSubmitting(false);
     }
@@ -166,12 +168,9 @@ export default function Screen() {
       await patchTask(editing.id, { title: editTitle.trim(), due_date: editDue || null });
       closeEdit();
     } catch (err) {
-      if (err instanceof ApiError && err.status === 400) {
-        const detail = err.body && err.body.detail;
-        setEditError(typeof detail === "string" ? detail : "Title is required.");
-      } else {
-        setEditError("Could not save the task. Please try again.");
-      }
+      setEditError(
+        apiErrorMessage(err, "Title is required.", "Could not save the task. Please try again."),
+      );
     } finally {
       setSaving(false);
     }
