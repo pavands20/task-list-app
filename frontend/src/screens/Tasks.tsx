@@ -53,13 +53,14 @@ export default function Screen() {
   /* US-007: load the user's real tasks from the API on screen mount */
   React.useEffect(() => {
     let active = true;
-    apiFetch("/tasks")
-      .then((data) => {
+    (async () => {
+      try {
+        const data = await apiFetch("/tasks");
         if (active && Array.isArray(data)) setTasks(data);
-      })
-      .catch(() => {
+      } catch {
         // Load failure leaves the list empty; the empty state guides the user.
-      });
+      }
+    })();
     return () => {
       active = false;
     };
