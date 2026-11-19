@@ -289,6 +289,27 @@ def test_delete_tasks_returns_204_and_removes_task(client: TestClient) -> None:
     assert listing == []
 
 
+def test_ac022_delete_task_permanently_removes_it_from_list(client: TestClient) -> None:
+    """AC-022: deleting a task permanently removes it — it is gone from the
+    list and can no longer be accessed via PATCH (404)."""
+    token, _ = _register_and_get_token(client)
+    task = _create_task(client, token, "Permanently gone")
+
+    resp = client.delete(f"/tasks/{task['id']}", headers=_auth_headers(token))
+    assert resp.status_code == 204
+
+    # The task is gone from the list.
+    listing = client.get("/tasks", headers=_auth_headers(token)).json()
+    assert listing == []
+
+    # The deleted task can no longer be patched — it is permanently removed,
+    # not just hidden from the listing.
+    patch_resp = client.patch(
+        f"/tasks/{task['id']}", json={"title": "Still here?"}, headers=_auth_headers(token)
+    )
+    assert patch_resp.status_code == 404
+
+
 def test_ac024_patch_other_users_task_returns_404(client: TestClient) -> None:
     """AC-024: PATCH on another user's task returns 404 (NFR-005)."""
     token_a, _ = _register_and_get_token(client)

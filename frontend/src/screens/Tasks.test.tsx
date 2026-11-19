@@ -271,6 +271,40 @@ describe("Tasks screen", () => {
     );
   });
 
+  it("[AC-018] clearing the due date in the edit modal sends due_date: null and shows 'No due date'", async () => {
+    const user = userEvent.setup();
+    mockedApiFetch.mockResolvedValueOnce([
+      task({ id: "t1", title: "Pay rent", due_date: "2026-11-20" }),
+    ] as never);
+    mockedApiFetch.mockResolvedValueOnce(
+      task({ id: "t1", title: "Pay rent", due_date: null }) as never,
+    );
+
+    render(
+      <MemoryRouter>
+        <Tasks />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText("Pay rent");
+    await user.click(screen.getByRole("button", { name: /Edit "Pay rent"/i }));
+
+    // Clear the due date input.
+    fireEvent.change(screen.getByLabelText(/clear to remove/i), { target: { value: "" } });
+    await user.click(screen.getByRole("button", { name: /Save Changes/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText("No due date")).toBeInTheDocument();
+    });
+    expect(mockedApiFetch).toHaveBeenCalledWith(
+      "/tasks/t1",
+      expect.objectContaining({
+        method: "PATCH",
+        body: JSON.stringify({ title: "Pay rent", due_date: null }),
+      }),
+    );
+  });
+
   it("[handleSave] shows an error message when the API returns 400 for an empty title", async () => {
     const user = userEvent.setup();
     mockedApiFetch.mockResolvedValueOnce([task({ id: "t1", title: "Buy groceries" })] as never);
