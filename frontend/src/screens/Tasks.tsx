@@ -223,11 +223,29 @@ export default function Screen() {
   }, [editing]);
 
   return (
-    <div className="bg-white" style={{ color: brand.primaryColor, fontFamily: brand.fontBody }}>
+    <div
+      className="bg-white mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-8"
+      style={{ color: brand.primaryColor, fontFamily: brand.fontBody }}
+    >
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
         @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
         button:focus-visible, input:focus-visible { outline: 2px solid ${brand.accentColor}; outline-offset: 1px; }
+        /* NFR-008: reflow the task table into a stacked card layout on small
+           screens so the list never needs horizontal scrolling. The thead is
+           dropped (each cell's content is self-describing) and each row becomes
+           a flex card: checkbox + title share the first line, due date and the
+           edit button stack full-width below. */
+        @media (max-width: 639px) {
+          .tasks-table, .tasks-table tbody { display: block; width: 100%; }
+          .tasks-table thead { display: none; }
+          .tasks-table tr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 12px 0; }
+          .tasks-table td { display: block; text-align: left; }
+          .tasks-table td.cell-check { flex: 0 0 auto; padding-left: 0; }
+          .tasks-table td.cell-title { flex: 1 1 0; min-width: 0; }
+          .tasks-table td.cell-due { flex: 0 0 100%; }
+          .tasks-table td.cell-edit { flex: 0 0 100%; }
+        }
       `}</style>
 
       {/* Row 1 — page title */}
@@ -368,7 +386,10 @@ export default function Screen() {
         </div>
       ) : (
         <div data-wf="b-3-0" className="overflow-x-auto" style={{ borderTop: rule }}>
-          <table className="w-full text-[13px]" style={{ fontVariantNumeric: "tabular-nums" }}>
+          <table
+            className="tasks-table w-full text-[13px]"
+            style={{ fontVariantNumeric: "tabular-nums" }}
+          >
             <thead>
               <tr
                 className="text-left text-[11px] uppercase tracking-[0.14em]"
@@ -396,7 +417,7 @@ export default function Screen() {
                   style={{ borderBottom: hair }}
                   data-wf={`i-3-0-${idx}`}
                 >
-                  <td className="py-2 pl-2">
+                  <td className="cell-check py-2 pl-2">
                     <button
                       type="button"
                       data-wf={`i-3-0-${idx}`}
@@ -439,7 +460,7 @@ export default function Screen() {
                       )}
                     </button>
                   </td>
-                  <td className="py-2">
+                  <td className="cell-title py-2">
                     <span
                       className={task.is_done ? "line-through" : ""}
                       style={{ color: task.is_done ? brand.neutralColor : brand.primaryColor }}
@@ -456,12 +477,12 @@ export default function Screen() {
                     )}
                   </td>
                   <td
-                    className="py-2"
+                    className="cell-due py-2"
                     style={{ color: task.due_date ? brand.primaryColor : brand.neutralColor }}
                   >
                     {formatDate(task.due_date)}
                   </td>
-                  <td className="py-2 text-right">
+                  <td className="cell-edit py-2 text-right">
                     <button
                       type="button"
                       data-wf={`i-3-0-${idx}`}
