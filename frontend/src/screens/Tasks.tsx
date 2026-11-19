@@ -382,7 +382,7 @@ export default function Screen() {
                 style={{ borderBottom: rule, color: brand.neutralColor }}
               >
                 <th scope="col" className="w-12 py-2">
-                  <span className="sr-only">Mark done</span>
+                  <span className="sr-only">Mark complete</span>
                 </th>
                 <th scope="col" className="py-2 font-bold">
                   Task

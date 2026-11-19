@@ -415,4 +415,123 @@ describe("Tasks screen", () => {
     expect(mockedApiFetch).toHaveBeenCalledTimes(1);
     expect(mockedApiFetch).toHaveBeenCalledWith("/tasks");
   });
+
+  it("[AC-025] each task shows its title, its due date if set, and whether it is done or active", async () => {
+    mockedApiFetch.mockResolvedValueOnce([
+      task({ id: "t1", title: "Submit report", due_date: "2026-11-25", is_done: false }),
+      task({ id: "t2", title: "Call mom", due_date: null, is_done: false }),
+      task({ id: "t3", title: "File taxes", due_date: "2026-12-01", is_done: true }),
+      task({ id: "t4", title: "Water plants", due_date: null, is_done: true }),
+    ] as never);
+
+    render(
+      <MemoryRouter>
+        <Tasks />
+      </MemoryRouter>,
+    );
+
+    // Titles for every task.
+    expect(await screen.findByText("Submit report")).toBeInTheDocument();
+    expect(screen.getByText("Call mom")).toBeInTheDocument();
+    expect(screen.getByText("File taxes")).toBeInTheDocument();
+    expect(screen.getByText("Water plants")).toBeInTheDocument();
+
+    // Due dates: set dates are shown; unset show "No due date".
+    expect(screen.getByText("Due Nov 25, 2026")).toBeInTheDocument();
+    expect(screen.getByText("Due Dec 1, 2026")).toBeInTheDocument();
+    // Two tasks have no due date.
+    expect(screen.getAllByText("No due date")).toHaveLength(2);
+
+    // Done/active status: completed tasks show the "Done" badge; active ones do not.
+    const doneBadges = screen.getAllByText("Done");
+    expect(doneBadges).toHaveLength(2);
+    // The active tasks' titles are NOT struck through (no "Done" badge next to them).
+    // The done toggle button aria-label distinguishes active vs done.
+    expect(screen.getByRole("button", { name: /Mark "Submit report" as done/i })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+    expect(screen.getByRole("button", { name: /Mark "Call mom" as done/i })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+    expect(screen.getByRole("button", { name: /Mark "File taxes" as not done/i })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(
+      screen.getByRole("button", { name: /Mark "Water plants" as not done/i }),
+    ).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("[AC-026] shows an empty-state message inviting me to add my first task when I have no tasks", async () => {
+    mockedApiFetch.mockResolvedValueOnce([] as never);
+
+    render(
+      <MemoryRouter>
+        <Tasks />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("No tasks yet")).toBeInTheDocument();
+    expect(screen.getByText(/Add your first task/i)).toBeInTheDocument();
+    // No task rows are rendered.
+    expect(screen.queryByRole("button", { name: /Mark .* as done/i })).not.toBeInTheDocument();
+  });
+
+  it("[AC-027] selecting the active filter shows only tasks that are not done", async () => {
+    const user = userEvent.setup();
+    mockedApiFetch.mockResolvedValueOnce([
+      task({ id: "t1", title: "Active one", due_date: "2026-11-25", is_done: false }),
+      task({ id: "t2", title: "Active two", due_date: null, is_done: false }),
+      task({ id: "t3", title: "Done one", due_date: "2026-12-01", is_done: true }),
+      task({ id: "t4", title: "Done two", due_date: null, is_done: true }),
+    ] as never);
+
+    render(
+      <MemoryRouter>
+        <Tasks />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText("Active one");
+
+    await user.click(screen.getByRole("button", { name: "Active" }));
+
+    // Active tasks remain; completed tasks are hidden.
+    expect(screen.getByText("Active one")).toBeInTheDocument();
+    expect(screen.getByText("Active two")).toBeInTheDocument();
+    expect(screen.queryByText("Done one")).not.toBeInTheDocument();
+    expect(screen.queryByText("Done two")).not.toBeInTheDocument();
+    // No "Done" badges in the active-filtered view.
+    expect(screen.queryByText("Done")).not.toBeInTheDocument();
+  });
+
+  it("[AC-028] selecting the completed filter shows only tasks that are done", async () => {
+    const user = userEvent.setup();
+    mockedApiFetch.mockResolvedValueOnce([
+      task({ id: "t1", title: "Active one", due_date: "2026-11-25", is_done: false }),
+      task({ id: "t2", title: "Active two", due_date: null, is_done: false }),
+      task({ id: "t3", title: "Done one", due_date: "2026-12-01", is_done: true }),
+      task({ id: "t4", title: "Done two", due_date: null, is_done: true }),
+    ] as never);
+
+    render(
+      <MemoryRouter>
+        <Tasks />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText("Active one");
+
+    await user.click(screen.getByRole("button", { name: "Completed" }));
+
+    // Completed tasks remain; active tasks are hidden.
+    expect(screen.getByText("Done one")).toBeInTheDocument();
+    expect(screen.getByText("Done two")).toBeInTheDocument();
+    expect(screen.queryByText("Active one")).not.toBeInTheDocument();
+    expect(screen.queryByText("Active two")).not.toBeInTheDocument();
+    // Both completed tasks show the "Done" badge.
+    expect(screen.getAllByText("Done")).toHaveLength(2);
+  });
 });
