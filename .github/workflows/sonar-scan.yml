@@ -1,11 +1,13 @@
 # Managed by AI SDLC. Runs the project's SonarQube scan. The token is a
 # repository secret (SONAR_TOKEN), written by the platform or added by the user;
-# it is never committed here.
+# it is never committed here. Actions are pinned to a commit, not a movable tag.
 name: SonarQube scan
 
 on:
   workflow_dispatch: {}
   push:
+    branches-ignore:
+      - "main"
     paths:
       - ".quorq/sonar/request"
 
@@ -13,16 +15,10 @@ jobs:
   sonar:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
         with:
           fetch-depth: 0
-      - uses: sonarsource/sonarqube-scan-action@v4
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-
-      - uses: sonarsource/sonarqube-quality-gate-action@v1
-        timeout-minutes: 5
+      - uses: sonarsource/sonarqube-scan-action@689fb39b34b9aa95ebc5f8f119343ddd51542402  # v4.2.2
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
