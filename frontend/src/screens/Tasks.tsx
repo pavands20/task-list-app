@@ -53,7 +53,7 @@ export default function Screen() {
   /* US-007: load the user's real tasks from the API on screen mount */
   React.useEffect(() => {
     let active = true;
-    (async () => {
+    void (async () => {
       try {
         const data = await apiFetch("/tasks");
         if (active && Array.isArray(data)) setTasks(data);
@@ -283,7 +283,7 @@ export default function Screen() {
               if (addError) setAddError("");
             }}
             onKeyDown={(e) => {
-              if (e.key === "Enter") handleAdd();
+              if (e.key === "Enter") void handleAdd();
             }}
             placeholder="What needs to be done?"
             className="h-9 w-full bg-white px-3 text-sm outline-none"
