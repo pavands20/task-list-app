@@ -13,9 +13,9 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.auth import create_session, get_current_user, revoke_session
+from app.models import PasswordResetToken, Task, User
 from app.models import Session as SessionModel
-from app.models import User
-from app.routers.auth import _validate_credentials, register
+from app.routers.auth import _validate_credentials, delete_account, register
 from app.schemas import Credentials
 from app.security import hash_password, verify_password
 
@@ -154,3 +154,70 @@ def test_create_session_then_revoke_session_makes_token_hash_unresolvable(
     assert exc.value.status_code == 401
     # Revoking again is a no-op (token already gone).
     assert revoke_session(db_session, token) is False
+
+
+def test_ac012_delete_account_removes_user_tasks_sessions_and_tokens(db_session: Session) -> None:
+    """AC-012 / NFR-006: delete_account removes the user and cascades to tasks,
+    sessions and password-reset tokens."""
+    user = User(email="del@example.com", password_hash=hash_password("pw"))
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+
+    # Give the user a session, a task and a reset token.
+    create_session(db_session, user)
+    db_session.add(Task(user_id=user.id, title="Do something"))
+    db_session.add(
+        PasswordResetToken(
+            user_id=user.id,
+            token_hash=hashlib.sha256(b"rt").hexdigest(),
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
+            used_at=None,
+        )
+    )
+    db_session.commit()
+
+    assert db_session.query(SessionModel).filter_by(user_id=user.id).count() == 1
+    assert db_session.query(Task).filter_by(user_id=user.id).count() == 1
+    assert db_session.query(PasswordResetToken).filter_by(user_id=user.id).count() == 1
+
+    delete_account(db=db_session, user=user)
+
+    assert db_session.query(User).filter_by(id=user.id).count() == 0
+    assert db_session.query(SessionModel).filter_by(user_id=user.id).count() == 0
+    assert db_session.query(Task).filter_by(user_id=user.id).count() == 0
+    assert db_session.query(PasswordResetToken).filter_by(user_id=user.id).count() == 0
+
+
+def test_nfr002_delete_account_revokes_all_sessions(db_session: Session) -> None:
+    """NFR-002: after delete_account, all sessions for the user are revoked so
+    the old token can no longer resolve to a user."""
+    user = User(email="revoke-del@example.com", password_hash=hash_password("pw"))
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+
+    token = create_session(db_session, user)
+    # The token resolves before deletion.
+    assert get_current_user(authorization=f"Bearer {token}", db=db_session).id == user.id
+
+    delete_account(db=db_session, user=user)
+
+    # No session rows remain and the old token is now rejected.
+    assert db_session.query(SessionModel).filter_by(user_id=user.id).count() == 0
+    with pytest.raises(HTTPException) as exc:
+        get_current_user(authorization=f"Bearer {token}", db=db_session)
+    assert exc.value.status_code == 401
+
+
+def test_nfr006_delete_account_is_permanent_user_gone(db_session: Session) -> None:
+    """NFR-006: the user record is permanently removed and cannot be found."""
+    user = User(email="perm@example.com", password_hash=hash_password("pw"))
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+    user_id = user.id
+
+    delete_account(db=db_session, user=user)
+
+    assert db_session.query(User).filter_by(id=user_id).first() is None

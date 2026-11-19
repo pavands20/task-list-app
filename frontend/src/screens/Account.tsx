@@ -40,14 +40,19 @@ export default function Screen() {
     }
   }
 
-  function handleDelete() {
+  async function handleDelete() {
     if (!canConfirmDelete) return;
     setDeleting(true);
     setError(null);
-    // Simulate DELETE /account
-    setTimeout(() => {
+    try {
+      await apiFetch("/account", { method: "DELETE" });
+      clearSessionToken();
       navigate("sign-in");
-    }, 600);
+    } catch (err) {
+      setError("Could not delete your account. Please try again.");
+    } finally {
+      setDeleting(false);
+    }
   }
 
   function closeModal() {
