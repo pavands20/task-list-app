@@ -1,5 +1,4 @@
 // @ts-nocheck -- generated from the approved design under its JS runtime contract; not hand-written TypeScript.
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import React from "react";
 
 import * as UI from "@/lib/ui";
@@ -52,12 +51,6 @@ export default function Screen() {
     }
   }
 
-  function handleReset() {
-    setEmail("");
-    setError(null);
-    setSubmitted(false);
-  }
-
   const pageStyle = {
     backgroundColor: brand.backgroundColor,
     color: brand.primaryColor,
@@ -105,10 +98,6 @@ export default function Screen() {
     fontSize: "15px",
     outline: "none",
     transition: "border-color 0.15s ease",
-  };
-
-  const focusRingStyle = {
-    boxShadow: "0 0 0 2px " + brand.backgroundColor + ", 0 0 0 4px " + brand.accentColor,
   };
 
   const primaryButtonStyle = {
@@ -344,7 +333,7 @@ export default function Screen() {
               onClick={function () {
                 navigate("reset-password");
               }}
-              style={Object.assign({}, linkButtonStyle)}
+              style={linkButtonStyle}
               onFocus={function (e) {
                 e.target.style.color = brand.accentColor;
               }}

@@ -29,7 +29,7 @@ def _parse_task_id(task_id: str) -> uuid.UUID:
     """Parse the path id, or raise 404 if it is not a valid UUID."""
     try:
         return uuid.UUID(task_id)
-    except (ValueError, AttributeError):
+    except ValueError:
         raise HTTPException(status_code=404, detail="Task not found") from None
 
 
@@ -72,7 +72,7 @@ def patch_task(task_id: str, body: TaskUpdate, db: DbSession, user: CurrentUser)
     data = body.model_dump(exclude_unset=True)
     if "title" in data:
         title = data["title"]
-        if not title or not str(title).strip():
+        if not title or not title.strip():
             raise HTTPException(status_code=400, detail="Title is required")
         task.title = title
     if "due_date" in data:
@@ -97,4 +97,3 @@ def delete_task(task_id: str, db: DbSession, user: CurrentUser) -> None:
         raise HTTPException(status_code=404, detail="Task not found")
     db.delete(task)
     db.commit()
-    return None

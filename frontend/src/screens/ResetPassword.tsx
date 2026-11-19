@@ -127,10 +127,7 @@ export default function Screen() {
           "div",
           {
             style: {
-              borderTop: borderStyle,
-              borderLeft: borderStyle,
-              borderRight: borderStyle,
-              borderBottom: borderStyle,
+              border: borderStyle,
               borderRadius: brand.radius,
               padding: "40px 32px",
             },
