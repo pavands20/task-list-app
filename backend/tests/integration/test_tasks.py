@@ -100,6 +100,45 @@ def test_get_tasks_returns_users_tasks_as_array(client: TestClient) -> None:
     assert titles == {"First", "Second"}
 
 
+def test_ac025_get_tasks_response_has_required_fields(client: TestClient) -> None:
+    """AC-025: each task in GET /tasks carries id, title, due_date, is_done and
+    created_at so the list view can show title, due date (if set) and done/active
+    status."""
+    token, _ = _register_and_get_token(client)
+    client.post(
+        "/tasks",
+        json={"title": "With due date", "due_date": "2026-11-25"},
+        headers=_auth_headers(token),
+    )
+    client.post("/tasks", json={"title": "No due date"}, headers=_auth_headers(token))
+
+    body = client.get("/tasks", headers=_auth_headers(token)).json()
+    assert len(body) == 2
+
+    by_title = {t["title"]: t for t in body}
+
+    with_due = by_title["With due date"]
+    assert set(with_due.keys()) >= {"id", "title", "due_date", "is_done", "created_at"}
+    assert isinstance(with_due["id"], str) and with_due["id"]
+    assert with_due["title"] == "With due date"
+    assert with_due["due_date"] == "2026-11-25"
+    assert with_due["is_done"] is False
+    assert with_due["created_at"]
+
+    no_due = by_title["No due date"]
+    assert no_due["due_date"] is None
+    assert no_due["is_done"] is False
+
+
+def test_ac026_get_tasks_returns_empty_array_for_new_user(client: TestClient) -> None:
+    """AC-026: a user with no tasks gets an empty array (200), which the
+    frontend renders as the empty-state message."""
+    token, _ = _register_and_get_token(client)
+    resp = client.get("/tasks", headers=_auth_headers(token))
+    assert resp.status_code == 200
+    assert resp.json() == []
+
+
 def test_post_tasks_unauthenticated_returns_401(client: TestClient) -> None:
     """A missing Bearer token to POST /tasks returns 401."""
     resp = client.post("/tasks", json={"title": "No auth"})
@@ -287,6 +326,27 @@ def test_delete_tasks_returns_204_and_removes_task(client: TestClient) -> None:
 
     listing = client.get("/tasks", headers=_auth_headers(token)).json()
     assert listing == []
+
+
+def test_ac022_delete_task_permanently_removes_it_from_list(client: TestClient) -> None:
+    """AC-022: deleting a task permanently removes it — it is gone from the
+    list and can no longer be accessed via PATCH (404)."""
+    token, _ = _register_and_get_token(client)
+    task = _create_task(client, token, "Permanently gone")
+
+    resp = client.delete(f"/tasks/{task['id']}", headers=_auth_headers(token))
+    assert resp.status_code == 204
+
+    # The task is gone from the list.
+    listing = client.get("/tasks", headers=_auth_headers(token)).json()
+    assert listing == []
+
+    # The deleted task can no longer be patched — it is permanently removed,
+    # not just hidden from the listing.
+    patch_resp = client.patch(
+        f"/tasks/{task['id']}", json={"title": "Still here?"}, headers=_auth_headers(token)
+    )
+    assert patch_resp.status_code == 404
 
 
 def test_ac024_patch_other_users_task_returns_404(client: TestClient) -> None:

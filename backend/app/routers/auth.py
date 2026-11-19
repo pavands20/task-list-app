@@ -32,8 +32,10 @@ from app.schemas import (
 from app.security import hash_password, verify_password
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+account_router = APIRouter(tags=["account"])
 
 DbSession = Annotated[Session, Depends(get_db)]
+CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
 def _validate_credentials(email: str, password: str) -> dict[str, list[str]]:
@@ -126,13 +128,30 @@ def password_reset_confirm(body: PasswordResetConfirm, db: DbSession) -> dict[st
     if reset_token is None:
         raise HTTPException(status_code=400, detail="Invalid or expired reset token.")
     if not body.new_password:
-        raise HTTPException(
-            status_code=400, detail={"new_password": ["Password is required"]}
-        )
+        raise HTTPException(status_code=400, detail={"new_password": ["Password is required"]})
     user = db.query(User).filter_by(id=reset_token.user_id).first()
-    assert user is not None  # FK guarantees the user exists
+    if user is None:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token.")
     user.password_hash = hash_password(body.new_password)
     reset_token.used_at = datetime.now(UTC)
     db.query(SessionModel).filter_by(user_id=user.id).delete()
     db.commit()
     return {"message": "Your password has been reset."}
+
+
+@account_router.delete("/account", status_code=204)
+def delete_account(
+    db: DbSession,
+    user: CurrentUser,
+) -> None:
+    """Permanently delete the authenticated user and all their data (AC-012, AC-013).
+
+    The user record is removed; the ``ON DELETE CASCADE`` foreign keys on
+    ``sessions``, ``password_reset_tokens`` and ``tasks`` remove everything the
+    user owns atomically, so all active sessions are revoked and no data
+    remains (NFR-002, NFR-006). Returns 204 No Content; a missing, invalid or
+    expired token yields 401 from the auth dependency.
+    """
+    db.delete(user)
+    db.commit()
+    return None

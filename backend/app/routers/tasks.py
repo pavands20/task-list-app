@@ -53,7 +53,12 @@ def create_task(body: TaskCreate, db: DbSession, user: CurrentUser) -> TaskRespo
 @router.get("", response_model=list[TaskResponse], status_code=200)
 def list_tasks(db: DbSession, user: CurrentUser) -> list[TaskResponse]:
     """Return all tasks belonging to the authenticated user."""
-    tasks = db.query(Task).filter_by(user_id=user.id).order_by(Task.created_at).all()
+    tasks = (
+        db.query(Task)
+        .filter_by(user_id=user.id)
+        .order_by(Task.due_date.asc(), Task.created_at.asc())
+        .all()
+    )
     return [TaskResponse.model_validate(t) for t in tasks]
 
 
@@ -77,7 +82,7 @@ def patch_task(task_id: str, body: TaskUpdate, db: DbSession, user: CurrentUser)
         task.title = title
     if "due_date" in data:
         task.due_date = data["due_date"]
-    if "is_done" in data:
+    if "is_done" in data and data["is_done"] is not None:
         task.is_done = data["is_done"]
 
     db.commit()

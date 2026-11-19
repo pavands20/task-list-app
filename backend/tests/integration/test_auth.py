@@ -12,6 +12,7 @@ from datetime import UTC, datetime, timedelta
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
+from app.models import PasswordResetToken, Task, User
 from app.models import Session as SessionModel
 
 
@@ -185,3 +186,134 @@ def test_ac008_expired_session_token_on_tasks_returns_401(
     assert (
         client.post("/tasks", json={"title": "x"}, headers=_auth_headers(token)).status_code == 401
     )
+
+
+def _register_user(client: TestClient, email: str | None = None) -> tuple[str, str, str]:
+    """Register a user; return (token, email, password)."""
+    email = email or _unique_email()
+    password = _unique_password()
+    resp = client.post("/auth/register", json={"email": email, "password": password})
+    assert resp.status_code == 200, resp.text
+    return resp.json()["token"], email, password
+
+
+def test_ac012_delete_account_returns_204_and_removes_all_data(
+    client: TestClient, db_session: Session
+) -> None:
+    """AC-012: DELETE /account with a valid token returns 204 and removes the
+    user, all tasks, all sessions and all password-reset tokens."""
+    token, email, password = _register_user(client)
+    user = db_session.query(User).filter_by(email=email).first()
+    assert user is not None
+    user_id = user.id
+
+    # Create a task and a password-reset token for the user.
+    assert (
+        client.post("/tasks", json={"title": "Mine"}, headers=_auth_headers(token)).status_code
+        == 201
+    )
+    db_session.add(
+        PasswordResetToken(
+            user_id=user_id,
+            token_hash=hashlib.sha256(b"reset").hexdigest(),
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
+            used_at=None,
+        )
+    )
+    db_session.commit()
+    # Reload the user into this session so the delete cascades cleanly.
+    db_session.expire_all()
+    user = db_session.query(User).filter_by(id=user_id).first()
+    assert user is not None
+
+    assert db_session.query(SessionModel).filter_by(user_id=user_id).count() == 1
+    assert db_session.query(Task).filter_by(user_id=user_id).count() == 1
+    assert db_session.query(PasswordResetToken).filter_by(user_id=user_id).count() == 1
+
+    resp = client.delete("/account", headers=_auth_headers(token))
+    assert resp.status_code == 204
+    assert resp.content == b""
+
+    assert db_session.query(User).filter_by(id=user_id).count() == 0
+    assert db_session.query(SessionModel).filter_by(user_id=user_id).count() == 0
+    assert db_session.query(Task).filter_by(user_id=user_id).count() == 0
+    assert db_session.query(PasswordResetToken).filter_by(user_id=user_id).count() == 0
+
+
+def test_ac013_login_after_account_deletion_returns_401(client: TestClient) -> None:
+    """AC-013: after the account is deleted, POST /auth/login with the deleted
+    account's credentials returns 401 because the account no longer exists."""
+    token, email, password = _register_user(client)
+
+    # The credentials worked before deletion.
+    assert (
+        client.post("/auth/login", json={"email": email, "password": password}).status_code == 200
+    )
+
+    resp = client.delete("/account", headers=_auth_headers(token))
+    assert resp.status_code == 204
+
+    login_resp = client.post("/auth/login", json={"email": email, "password": password})
+    assert login_resp.status_code == 401
+    assert login_resp.json()["detail"] == "Invalid email or password"
+
+
+def test_nfr002_delete_account_revokes_sessions_old_token_401(client: TestClient) -> None:
+    """NFR-002: after deletion, the old session token no longer authenticates
+    any subsequent call (401)."""
+    token, email, password = _register_user(client)
+    # Token works before deletion.
+    assert client.get("/tasks", headers=_auth_headers(token)).status_code == 200
+
+    assert client.delete("/account", headers=_auth_headers(token)).status_code == 204
+
+    assert client.get("/tasks", headers=_auth_headers(token)).status_code == 401
+    assert client.delete("/account", headers=_auth_headers(token)).status_code == 401
+
+
+def test_delete_account_without_authorization_returns_401(client: TestClient) -> None:
+    """DELETE /account without an Authorization header returns 401."""
+    assert client.delete("/account").status_code == 401
+
+
+def test_delete_account_with_invalid_token_returns_401(client: TestClient) -> None:
+    """DELETE /account with an invalid Bearer token returns 401."""
+    assert client.delete("/account", headers=_auth_headers("not-a-real-token")).status_code == 401
+
+
+def test_delete_account_with_expired_token_returns_401(
+    client: TestClient, db_session: Session
+) -> None:
+    """DELETE /account with an expired token returns 401."""
+    token, email, password = _register_user(client)
+    _expire_active_session(db_session, token)
+    assert client.delete("/account", headers=_auth_headers(token)).status_code == 401
+
+
+def test_nfr006_delete_account_does_not_affect_other_users(client: TestClient) -> None:
+    """NFR-006: deleting one user does not remove another user's data."""
+    token_a, email_a, password_a = _register_user(client)
+    token_b, email_b, password_b = _register_user(client)
+
+    assert (
+        client.post("/tasks", json={"title": "A task"}, headers=_auth_headers(token_a)).status_code
+        == 201
+    )
+    assert (
+        client.post("/tasks", json={"title": "B task"}, headers=_auth_headers(token_b)).status_code
+        == 201
+    )
+
+    assert client.delete("/account", headers=_auth_headers(token_a)).status_code == 204
+
+    # User A is gone; user B is unaffected.
+    assert (
+        client.post("/auth/login", json={"email": email_a, "password": password_a}).status_code
+        == 401
+    )
+    assert (
+        client.post("/auth/login", json={"email": email_b, "password": password_b}).status_code
+        == 200
+    )
+    b_tasks = client.get("/tasks", headers=_auth_headers(token_b)).json()
+    assert {t["title"] for t in b_tasks} == {"B task"}

@@ -1,5 +1,4 @@
 // @ts-nocheck -- generated from the approved design under its JS runtime contract; not hand-written TypeScript.
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import React from "react";
 
 import * as UI from "@/lib/ui";
@@ -9,8 +8,6 @@ import { useNavigate } from "@/lib/navigate";
 import { apiFetch, clearSessionToken } from "@/lib/api";
 
 const { Button, Input, Label } = UI;
-
-const { Settings } = Icons;
 
 export default function Screen() {
   const navigate = useNavigate();
@@ -40,14 +37,19 @@ export default function Screen() {
     }
   }
 
-  function handleDelete() {
+  async function handleDelete() {
     if (!canConfirmDelete) return;
     setDeleting(true);
     setError(null);
-    // Simulate DELETE /account
-    setTimeout(() => {
+    try {
+      await apiFetch("/account", { method: "DELETE" });
+      clearSessionToken();
       navigate("sign-in");
-    }, 600);
+    } catch {
+      setError("Could not delete your account. Please try again.");
+    } finally {
+      setDeleting(false);
+    }
   }
 
   function closeModal() {
@@ -70,10 +72,6 @@ export default function Screen() {
     fontWeight: 600,
     textTransform: "uppercase",
     letterSpacing: "0.08em",
-  };
-
-  const border2 = {
-    border: "2px solid " + brand.primaryColor,
   };
 
   // ── Render ─────────────────────────────────────────────────────
