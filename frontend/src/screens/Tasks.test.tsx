@@ -534,4 +534,78 @@ describe("Tasks screen", () => {
     // Both completed tasks show the "Done" badge.
     expect(screen.getAllByText("Done")).toHaveLength(2);
   });
+
+  it("[handleToggleInModal] clicking Mark Done in the edit modal toggles is_done via PATCH and updates the modal", async () => {
+    const user = userEvent.setup();
+    mockedApiFetch.mockResolvedValueOnce([
+      task({ id: "t1", title: "Buy groceries", is_done: false }),
+    ] as never);
+    mockedApiFetch.mockResolvedValueOnce(
+      task({ id: "t1", title: "Buy groceries", is_done: true }) as never,
+    );
+
+    render(
+      <MemoryRouter>
+        <Tasks />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText("Buy groceries");
+    await user.click(screen.getByRole("button", { name: /Edit "Buy groceries"/i }));
+    await user.click(screen.getByRole("button", { name: /^Mark Done$/i }));
+
+    await waitFor(() => {
+      expect(mockedApiFetch).toHaveBeenCalledWith(
+        "/tasks/t1",
+        expect.objectContaining({
+          method: "PATCH",
+          body: JSON.stringify({ is_done: true }),
+        }),
+      );
+    });
+    // Modal now reflects the done state.
+    expect(await screen.findByRole("button", { name: /^Mark Not Done$/i })).toBeInTheDocument();
+  });
+
+  it("[edit-modal] opening the edit modal focuses the title input", async () => {
+    const user = userEvent.setup();
+    mockedApiFetch.mockResolvedValueOnce([task({ id: "t1", title: "Buy groceries" })] as never);
+
+    render(
+      <MemoryRouter>
+        <Tasks />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText("Buy groceries");
+    await user.click(screen.getByRole("button", { name: /Edit "Buy groceries"/i }));
+
+    const titleInput = screen.getByLabelText(/Title \(required\)/i);
+    await waitFor(() => {
+      expect(document.activeElement).toBe(titleInput);
+    });
+  });
+
+  it("[edit-modal] pressing Escape closes the edit modal without saving", async () => {
+    const user = userEvent.setup();
+    mockedApiFetch.mockResolvedValueOnce([task({ id: "t1", title: "Buy groceries" })] as never);
+
+    render(
+      <MemoryRouter>
+        <Tasks />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText("Buy groceries");
+    await user.click(screen.getByRole("button", { name: /Edit "Buy groceries"/i }));
+    expect(screen.getByRole("heading", { name: "Edit Task" })).toBeInTheDocument();
+
+    await user.keyboard("{Escape}");
+
+    await waitFor(() => {
+      expect(screen.queryByRole("heading", { name: "Edit Task" })).not.toBeInTheDocument();
+    });
+    // No PATCH/DELETE was issued — only the initial GET.
+    expect(mockedApiFetch).toHaveBeenCalledTimes(1);
+  });
 });

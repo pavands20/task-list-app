@@ -113,6 +113,16 @@ export default function Screen() {
     }
   };
 
+  /* PATCH /tasks/{id} and merge the returned task into the list. */
+  const patchTask = async (id, patch) => {
+    const updated = await apiFetch(`/tasks/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    });
+    setTasks(tasks.map((t) => (t.id === id ? updated : t)));
+    return updated;
+  };
+
   /* US-009: toggle done / not done via PATCH /tasks/{id} */
   const toggleDone = async (id) => {
     const current = tasks.find((t) => t.id === id);
@@ -120,11 +130,7 @@ export default function Screen() {
     setTogglingId(id);
     setToggleError("");
     try {
-      const updated = await apiFetch(`/tasks/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ is_done: !current.is_done }),
-      });
-      setTasks(tasks.map((t) => (t.id === id ? updated : t)));
+      await patchTask(id, { is_done: !current.is_done });
     } catch {
       setToggleError("Could not update the task. Please try again.");
     } finally {
@@ -157,11 +163,7 @@ export default function Screen() {
     setSaving(true);
     setEditError("");
     try {
-      const updated = await apiFetch(`/tasks/${editing.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ title: editTitle.trim(), due_date: editDue || null }),
-      });
-      setTasks(tasks.map((t) => (t.id === editing.id ? updated : t)));
+      await patchTask(editing.id, { title: editTitle.trim(), due_date: editDue || null });
       closeEdit();
     } catch (err) {
       if (err instanceof ApiError && err.status === 400) {
@@ -181,11 +183,7 @@ export default function Screen() {
     setTogglingId(current.id);
     setEditError("");
     try {
-      const updated = await apiFetch(`/tasks/${current.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ is_done: !current.is_done }),
-      });
-      setTasks(tasks.map((t) => (t.id === current.id ? updated : t)));
+      const updated = await patchTask(current.id, { is_done: !current.is_done });
       setEditing(updated);
     } catch {
       setEditError("Could not update the task. Please try again.");
@@ -215,13 +213,8 @@ export default function Screen() {
   };
 
   React.useEffect(() => {
-    if (editing && editTitleRef.current) {
-      editTitleRef.current.focus();
-    }
-  }, [editing]);
-
-  React.useEffect(() => {
     if (!editing) return;
+    if (editTitleRef.current) editTitleRef.current.focus();
     const handler = (e) => {
       if (e.key === "Escape") closeEdit();
     };
