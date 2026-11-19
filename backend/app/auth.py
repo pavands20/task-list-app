@@ -59,17 +59,16 @@ def revoke_session(db: Session, token: str) -> bool:
 
 
 def get_current_user(
+    db: DbSession,
     authorization: AuthorizationHeader = None,
-    db: DbSession = None,
 ) -> User:
     """Resolve the bearer token to a user, or raise 401 for any failure.
 
-    ``db`` defaults to None so the function is also callable directly in unit
-    tests (which pass an explicit session); FastAPI injects the dependency from
-    the ``Annotated`` metadata for real requests.
+    ``db`` is a required parameter: FastAPI injects the database session from
+    the ``Annotated`` dependency metadata for real requests, and direct callers
+    (unit tests) pass an explicit session. Making it required surfaces wiring
+    errors immediately instead of masking them as a 401.
     """
-    if db is None:
-        raise HTTPException(status_code=401, detail="Invalid or missing authentication token")
     if not authorization or not authorization.lower().startswith("bearer "):
         raise HTTPException(status_code=401, detail="Invalid or missing authentication token")
     token = authorization[7:].strip()

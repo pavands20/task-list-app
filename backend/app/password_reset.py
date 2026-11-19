@@ -6,30 +6,16 @@ exposes live tokens. Each token is single-use (marked ``used_at`` on success)
 and time-limited (``expires_at`` = now + ``RESET_TOKEN_EXPIRY_HOURS``).
 """
 
-import hashlib
 import secrets
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.orm import Session
 
+from app.auth import _hash_token, _is_expired
 from app.config import APP_BASE_URL, RESET_TOKEN_EXPIRY_HOURS, SENDGRID_API_KEY
 from app.models import PasswordResetToken, User
 
 _RESET_FROM_EMAIL = "noreply@tasklist.app"
-
-
-def _hash_token(token: str) -> str:
-    """A fixed SHA-256 hash of the opaque reset token, for storage and lookup."""
-    return hashlib.sha256(token.encode()).hexdigest()
-
-
-def _is_expired(expires_at: datetime) -> bool:
-    """True if *expires_at* is in the past. Treats naive datetimes as UTC."""
-    now = datetime.now(UTC)
-    expires = expires_at
-    if expires.tzinfo is None:
-        expires = expires.replace(tzinfo=UTC)
-    return expires < now
 
 
 def generate_reset_token(db: Session, user: User) -> str:
@@ -50,9 +36,7 @@ def generate_reset_token(db: Session, user: User) -> str:
 
 def find_valid_token(db: Session, token: str) -> PasswordResetToken | None:
     """Return the reset-token row if *token* is valid, unused and unexpired."""
-    reset_token = (
-        db.query(PasswordResetToken).filter_by(token_hash=_hash_token(token)).first()
-    )
+    reset_token = db.query(PasswordResetToken).filter_by(token_hash=_hash_token(token)).first()
     if reset_token is None:
         return None
     if reset_token.used_at is not None:

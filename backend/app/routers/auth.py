@@ -130,7 +130,8 @@ def password_reset_confirm(body: PasswordResetConfirm, db: DbSession) -> dict[st
     if not body.new_password:
         raise HTTPException(status_code=400, detail={"new_password": ["Password is required"]})
     user = db.query(User).filter_by(id=reset_token.user_id).first()
-    assert user is not None  # FK guarantees the user exists
+    if user is None:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token.")
     user.password_hash = hash_password(body.new_password)
     reset_token.used_at = datetime.now(UTC)
     db.query(SessionModel).filter_by(user_id=user.id).delete()
