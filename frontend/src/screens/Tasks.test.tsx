@@ -608,4 +608,91 @@ describe("Tasks screen", () => {
     // No PATCH/DELETE was issued — only the initial GET.
     expect(mockedApiFetch).toHaveBeenCalledTimes(1);
   });
+
+  // US-014 / AC-029, AC-030: default sort by due date then creation time.
+  // The screen sorts client-side (nulls last) on top of whatever order the API
+  // returns, so assert the order a user sees by reading the done-toggle buttons
+  // in document order — their aria-labels carry the task titles.
+  async function displayedActiveTitles(): Promise<string[]> {
+    const buttons = await screen.findAllByRole("button", { name: /^Mark ".*" as done$/i });
+    return buttons.map((b) => {
+      const label = b.getAttribute("aria-label") ?? "";
+      const match = label.match(/^Mark "(.*)" as done$/i);
+      return match ? match[1] : "";
+    });
+  }
+
+  it("[AC-029] displays tasks ordered by due date ascending regardless of API order", async () => {
+    // API returns tasks out of due-date order; the screen must re-sort.
+    mockedApiFetch.mockResolvedValueOnce([
+      task({
+        id: "t1",
+        title: "December task",
+        due_date: "2026-12-10",
+        created_at: "2026-11-09T10:00:00Z",
+      }),
+      task({
+        id: "t2",
+        title: "November task",
+        due_date: "2026-11-01",
+        created_at: "2026-11-10T10:00:00Z",
+      }),
+      task({
+        id: "t3",
+        title: "October task",
+        due_date: "2026-10-15",
+        created_at: "2026-11-11T10:00:00Z",
+      }),
+    ] as never);
+
+    render(
+      <MemoryRouter>
+        <Tasks />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText("October task");
+    expect(await displayedActiveTitles()).toEqual([
+      "October task",
+      "November task",
+      "December task",
+    ]);
+  });
+
+  it("[AC-030] same-due-date tasks keep creation-time order, and no-due-date tasks follow in creation-time order", async () => {
+    // Same due date: Same-B is older than Same-A, so it must come first.
+    // No due date: NoDue-B is older than NoDue-A, and both follow every dated task.
+    mockedApiFetch.mockResolvedValueOnce([
+      task({
+        id: "t1",
+        title: "Same-A",
+        due_date: "2026-11-20",
+        created_at: "2026-11-12T09:00:00Z",
+      }),
+      task({
+        id: "t2",
+        title: "Same-B",
+        due_date: "2026-11-20",
+        created_at: "2026-11-12T08:00:00Z",
+      }),
+      task({ id: "t3", title: "Late", due_date: "2026-12-01", created_at: "2026-11-01T10:00:00Z" }),
+      task({ id: "t4", title: "NoDue-A", due_date: null, created_at: "2026-11-13T10:00:00Z" }),
+      task({ id: "t5", title: "NoDue-B", due_date: null, created_at: "2026-11-13T09:00:00Z" }),
+    ] as never);
+
+    render(
+      <MemoryRouter>
+        <Tasks />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText("Same-B");
+    expect(await displayedActiveTitles()).toEqual([
+      "Same-B",
+      "Same-A",
+      "Late",
+      "NoDue-B",
+      "NoDue-A",
+    ]);
+  });
 });

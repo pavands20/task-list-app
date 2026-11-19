@@ -49,6 +49,11 @@ def db_session() -> Iterator[Session]:
             session.close()
             transaction.rollback()
             connection.close()
+            # Drop the tables this fixture created so the shared sandbox
+            # database is left clean. Without this, ``create_all`` persists the
+            # schema (but no ``alembic_version`` row), and a later ``alembic
+            # upgrade head`` -- e.g. the E2E boot -- fails with DuplicateTable.
+            Base.metadata.drop_all(bind=engine)
             engine.dispose()
     else:
         engine = create_engine(
