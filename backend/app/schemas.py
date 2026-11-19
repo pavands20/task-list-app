@@ -30,6 +30,29 @@ class Credentials(BaseModel):
     password: str = ""
 
 
+class PasswordResetRequest(BaseModel):
+    """Request body for POST /auth/password-reset/request."""
+
+    email: str = ""
+
+
+class PasswordResetConfirm(BaseModel):
+    """Request body for POST /auth/password-reset/confirm.
+
+    Both fields default to the empty string so a missing field is treated as
+    an empty value and surfaced as the appropriate 400 error rather than 422.
+    """
+
+    token: str = ""
+    new_password: str = ""
+
+
+class MessageResponse(BaseModel):
+    """A simple { message: str } response body."""
+
+    message: str
+
+
 class TaskCreate(BaseModel):
     """Request body for POST /tasks: a required title and optional due date.
 
@@ -39,6 +62,20 @@ class TaskCreate(BaseModel):
 
     title: str = ""
     due_date: date | None = None
+
+
+class TaskUpdate(BaseModel):
+    """Request body for PATCH /tasks/{task_id}: a partial update.
+
+    All fields are optional (PATCH semantics). ``model_dump(exclude_unset=True)``
+    distinguishes a field the client sent from one it omitted, so a missing
+    field leaves the stored value untouched while an explicit ``null`` for
+    ``due_date`` clears it.
+    """
+
+    title: str | None = None
+    due_date: date | None = None
+    is_done: bool | None = None
 
 
 class TaskResponse(BaseModel):

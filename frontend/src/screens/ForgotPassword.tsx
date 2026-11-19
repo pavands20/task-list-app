@@ -1,13 +1,12 @@
 // @ts-nocheck -- generated from the approved design under its JS runtime contract; not hand-written TypeScript.
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import React from "react";
 
 import * as UI from "@/lib/ui";
 import { Icons } from "@/lib/icons";
 import { brand } from "@/lib/brand";
 import { useNavigate } from "@/lib/navigate";
+import { apiFetch } from "@/lib/api";
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const { Input, Label } = UI;
 
 export default function Screen() {
@@ -15,11 +14,12 @@ export default function Screen() {
   const [email, setEmail] = React.useState("");
   const [error, setError] = React.useState(null);
   const [submitted, setSubmitted] = React.useState(false);
+  const [confirmation, setConfirmation] = React.useState("");
   const [loading, setLoading] = React.useState(false);
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
     setError(null);
 
@@ -34,17 +34,21 @@ export default function Screen() {
     }
 
     setLoading(true);
-    // Simulate request — no server, state-only
-    setTimeout(function () {
-      setLoading(false);
+    try {
+      const data = await apiFetch("/auth/password-reset/request", {
+        method: "POST",
+        body: JSON.stringify({ email: trimmed }),
+      });
+      setConfirmation(
+        (data && data.message) ||
+          "If an account exists for this email, a password reset link has been sent.",
+      );
       setSubmitted(true);
-    }, 600);
-  }
-
-  function handleReset() {
-    setEmail("");
-    setError(null);
-    setSubmitted(false);
+    } catch {
+      setError("Could not send the reset link. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   const pageStyle = {
@@ -94,10 +98,6 @@ export default function Screen() {
     fontSize: "15px",
     outline: "none",
     transition: "border-color 0.15s ease",
-  };
-
-  const focusRingStyle = {
-    boxShadow: "0 0 0 2px " + brand.backgroundColor + ", 0 0 0 4px " + brand.accentColor,
   };
 
   const primaryButtonStyle = {
@@ -206,8 +206,8 @@ export default function Screen() {
                   }}
                 />
                 <p style={Object.assign({}, confirmationTextStyle, { margin: "0" })}>
-                  If an account exists for this email, a password reset link has been sent. The same
-                  confirmation is shown whether or not the email is registered.
+                  {confirmation ||
+                    "If an account exists for this email, a password reset link has been sent."}
                 </p>
               </div>
             </div>
@@ -307,10 +307,7 @@ export default function Screen() {
                   </>
                 ) : (
                   <>
-                    <Icons.FileText
-                      aria-hidden="true"
-                      style={{ width: "16px", height: "16px" }}
-                    />
+                    <Icons.FileText aria-hidden="true" style={{ width: "16px", height: "16px" }} />
                     Send Reset Link
                   </>
                 )}
@@ -336,7 +333,7 @@ export default function Screen() {
               onClick={function () {
                 navigate("reset-password");
               }}
-              style={Object.assign({}, linkButtonStyle)}
+              style={linkButtonStyle}
               onFocus={function (e) {
                 e.target.style.color = brand.accentColor;
               }}
@@ -345,10 +342,7 @@ export default function Screen() {
               }}
             >
               Follow reset link from email
-              <Icons.ChevronRight
-                aria-hidden="true"
-                style={{ width: "14px", height: "14px" }}
-              />
+              <Icons.ChevronRight aria-hidden="true" style={{ width: "14px", height: "14px" }} />
             </button>
           </div>
           <div data-wf="b-5-1" style={{ flex: "1 1 0", minWidth: "180px" }}>
@@ -365,10 +359,7 @@ export default function Screen() {
                 e.target.style.color = brand.primaryColor;
               }}
             >
-              <Icons.ArrowLeft
-                aria-hidden="true"
-                style={{ width: "14px", height: "14px" }}
-              />
+              <Icons.ArrowLeft aria-hidden="true" style={{ width: "14px", height: "14px" }} />
               Back to sign in
             </button>
           </div>

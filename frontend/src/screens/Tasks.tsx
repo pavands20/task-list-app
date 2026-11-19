@@ -37,6 +37,10 @@ export default function Screen() {
   const [editError, setEditError] = React.useState("");
   const [confirmDelete, setConfirmDelete] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
+  const [togglingId, setTogglingId] = React.useState(null);
+  const [saving, setSaving] = React.useState(false);
+  const [deleting, setDeleting] = React.useState(false);
+  const [toggleError, setToggleError] = React.useState("");
   const editTitleRef = React.useRef(null);
 
   /* US-007: load the user's real tasks from the API on screen mount */
@@ -109,13 +113,23 @@ export default function Screen() {
     }
   };
 
-  /* US-009: toggle done / not done */
-  const toggleDone = (id) => {
-    setTasks(
-      tasks.map((t) =>
-        t.id === id ? { ...t, is_done: !t.is_done, updated_at: new Date().toISOString() } : t,
-      ),
-    );
+  /* US-009: toggle done / not done via PATCH /tasks/{id} */
+  const toggleDone = async (id) => {
+    const current = tasks.find((t) => t.id === id);
+    if (!current) return;
+    setTogglingId(id);
+    setToggleError("");
+    try {
+      const updated = await apiFetch(`/tasks/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ is_done: !current.is_done }),
+      });
+      setTasks(tasks.map((t) => (t.id === id ? updated : t)));
+    } catch {
+      setToggleError("Could not update the task. Please try again.");
+    } finally {
+      setTogglingId(null);
+    }
   };
 
   const openEdit = (task) => {
@@ -134,41 +148,70 @@ export default function Screen() {
     setConfirmDelete(false);
   };
 
-  /* US-008: save edited title / due date */
-  const handleSave = () => {
+  /* US-008: save edited title / due date via PATCH /tasks/{id} */
+  const handleSave = async () => {
     if (!editTitle.trim()) {
       setEditError("Title is required. A task cannot have an empty title.");
       return;
     }
-    setTasks(
-      tasks.map((t) =>
-        t.id === editing.id
-          ? {
-              ...t,
-              title: editTitle.trim(),
-              due_date: editDue || null,
-              updated_at: new Date().toISOString(),
-            }
-          : t,
-      ),
-    );
-    closeEdit();
+    setSaving(true);
+    setEditError("");
+    try {
+      const updated = await apiFetch(`/tasks/${editing.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ title: editTitle.trim(), due_date: editDue || null }),
+      });
+      setTasks(tasks.map((t) => (t.id === editing.id ? updated : t)));
+      closeEdit();
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 400) {
+        const detail = err.body && err.body.detail;
+        setEditError(typeof detail === "string" ? detail : "Title is required.");
+      } else {
+        setEditError("Could not save the task. Please try again.");
+      }
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleToggleInModal = () => {
-    const updated = { ...editing, is_done: !editing.is_done, updated_at: new Date().toISOString() };
-    setTasks(tasks.map((t) => (t.id === editing.id ? updated : t)));
-    setEditing(updated);
+  const handleToggleInModal = async () => {
+    const current = editing;
+    if (!current) return;
+    setTogglingId(current.id);
+    setEditError("");
+    try {
+      const updated = await apiFetch(`/tasks/${current.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ is_done: !current.is_done }),
+      });
+      setTasks(tasks.map((t) => (t.id === current.id ? updated : t)));
+      setEditing(updated);
+    } catch {
+      setEditError("Could not update the task. Please try again.");
+    } finally {
+      setTogglingId(null);
+    }
   };
 
-  /* US-010: delete task — two-step confirm inside modal */
-  const handleDelete = () => {
+  /* US-010: delete task — two-step confirm inside modal, via DELETE /tasks/{id} */
+  const handleDelete = async () => {
     if (!confirmDelete) {
       setConfirmDelete(true);
       return;
     }
-    setTasks(tasks.filter((t) => t.id !== editing.id));
-    closeEdit();
+    setDeleting(true);
+    setEditError("");
+    try {
+      await apiFetch(`/tasks/${editing.id}`, { method: "DELETE" });
+      setTasks(tasks.filter((t) => t.id !== editing.id));
+      closeEdit();
+    } catch {
+      setEditError("Could not delete the task. Please try again.");
+      setConfirmDelete(false);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   React.useEffect(() => {
@@ -189,6 +232,7 @@ export default function Screen() {
   return (
     <div className="bg-white" style={{ color: brand.primaryColor, fontFamily: brand.fontBody }}>
       <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
         @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
         button:focus-visible, input:focus-visible { outline: 2px solid ${brand.accentColor}; outline-offset: 1px; }
       `}</style>
@@ -278,6 +322,11 @@ export default function Screen() {
           {addError}
         </p>
       )}
+      {toggleError && (
+        <p className="text-xs font-semibold py-1" style={{ color: brand.accentColor }} role="alert">
+          {toggleError}
+        </p>
+      )}
 
       {/* Row 3 — filter tabs + sort label */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-2 py-3">
@@ -365,18 +414,35 @@ export default function Screen() {
                       }
                       aria-pressed={task.is_done}
                       onClick={() => toggleDone(task.id)}
+                      disabled={togglingId === task.id}
                       className="w-6 h-6 inline-flex items-center justify-center transition-colors"
                       style={{
                         border: rule,
                         borderRadius: brand.radius,
                         backgroundColor: task.is_done ? brand.primaryColor : "#fff",
+                        opacity: togglingId === task.id ? 0.5 : 1,
                       }}
                     >
-                      {task.is_done && (
-                        <Icons.Check
+                      {togglingId === task.id ? (
+                        <span
                           aria-hidden="true"
-                          style={{ width: 14, height: 14, color: "#fff" }}
+                          style={{
+                            width: 10,
+                            height: 10,
+                            border: "2px solid #fff",
+                            borderTopColor: brand.primaryColor,
+                            borderRadius: "50%",
+                            display: "inline-block",
+                            animation: "spin 0.7s linear infinite",
+                          }}
                         />
+                      ) : (
+                        task.is_done && (
+                          <Icons.Check
+                            aria-hidden="true"
+                            style={{ width: 14, height: 14, color: "#fff" }}
+                          />
+                        )
                       )}
                     </button>
                   </td>
@@ -538,34 +604,51 @@ export default function Screen() {
                 type="button"
                 data-wf="b-5-0"
                 onClick={handleSave}
+                disabled={saving || deleting || togglingId === editing.id}
                 className="h-9 flex-1 px-4 text-xs font-bold uppercase tracking-[0.14em] text-white inline-flex items-center justify-center gap-2 transition-colors"
-                style={{ backgroundColor: brand.primaryColor, borderRadius: brand.radius }}
+                style={{
+                  backgroundColor: brand.primaryColor,
+                  borderRadius: brand.radius,
+                  opacity: saving ? 0.6 : 1,
+                }}
               >
-                <Icons.Check aria-hidden="true" style={{ width: 16, height: 16 }} /> Save Changes
+                <Icons.Check aria-hidden="true" style={{ width: 16, height: 16 }} />{" "}
+                {saving ? "Saving…" : "Save Changes"}
               </button>
               <button
                 type="button"
                 data-wf="b-5-1"
                 onClick={handleToggleInModal}
+                disabled={saving || deleting || togglingId === editing.id}
                 className="h-9 flex-1 px-4 text-xs font-bold uppercase tracking-[0.14em] inline-flex items-center justify-center gap-2 transition-colors"
-                style={{ border: rule, borderRadius: brand.radius }}
+                style={{
+                  border: rule,
+                  borderRadius: brand.radius,
+                  opacity: togglingId === editing.id ? 0.6 : 1,
+                }}
               >
-                {editing.is_done ? "Mark Not Done" : "Mark Done"}
+                {togglingId === editing.id
+                  ? "Updating…"
+                  : editing.is_done
+                    ? "Mark Not Done"
+                    : "Mark Done"}
               </button>
               <button
                 type="button"
                 data-wf="b-5-2"
                 onClick={handleDelete}
+                disabled={saving || deleting || togglingId === editing.id}
                 className="h-9 flex-1 px-4 text-xs font-bold uppercase tracking-[0.14em] inline-flex items-center justify-center gap-2 transition-colors"
                 style={{
                   border: rule,
                   borderRadius: brand.radius,
                   color: confirmDelete ? brand.accentColor : brand.primaryColor,
                   backgroundColor: confirmDelete ? mix(brand.accentColor, 8) : "#fff",
+                  opacity: deleting ? 0.6 : 1,
                 }}
               >
                 <Icons.X aria-hidden="true" style={{ width: 16, height: 16 }} />{" "}
-                {confirmDelete ? "Confirm Delete" : "Delete Task"}
+                {deleting ? "Deleting…" : confirmDelete ? "Confirm Delete" : "Delete Task"}
               </button>
             </div>
           </div>

@@ -274,8 +274,9 @@ test.describe("US-006 Use the app free of charge", () => {
     await expect(page.getByRole("dialog")).toHaveCount(0);
 
     // Every added task is present and visible — no cap or paywall hid them.
+    // exact: true so "Scalability task 1" does not also match "Scalability task 10".
     for (let i = 0; i < count; i++) {
-      await expect(page.getByText(`Scalability task ${i + 1}`)).toBeVisible();
+      await expect(page.getByText(`Scalability task ${i + 1}`, { exact: true })).toBeVisible();
     }
   });
 });

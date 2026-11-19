@@ -6,10 +6,10 @@ import * as UI from "@/lib/ui";
 import { Icons } from "@/lib/icons";
 import { brand } from "@/lib/brand";
 import { useNavigate } from "@/lib/navigate";
+import { apiFetch, clearSessionToken } from "@/lib/api";
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const { Button, Input, Label } = UI;
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+
 const { Settings } = Icons;
 
 export default function Screen() {
@@ -26,13 +26,18 @@ export default function Screen() {
   const canConfirmDelete = confirmText.trim().toLowerCase() === "delete";
 
   // ── Handlers ───────────────────────────────────────────────────
-  function handleSignOut() {
+  async function handleSignOut() {
     setSigningOut(true);
     setError(null);
-    // Simulate the POST /auth/logout round-trip
-    setTimeout(() => {
+    try {
+      await apiFetch("/auth/logout", { method: "POST" });
+    } catch {
+      // If the server already rejected the token, the global 401 handler or
+      // the finally below still ends the local session.
+    } finally {
+      clearSessionToken();
       navigate("sign-in");
-    }, 450);
+    }
   }
 
   function handleDelete() {
@@ -76,16 +81,10 @@ export default function Screen() {
     <div style={{ maxWidth: 640 }} className="mx-auto w-full px-6 py-10">
       {/* ── Row 1: Page title ─────────────────────────────────── */}
       <div data-wf="b-0-0">
-        <h1
-          style={headingStyle}
-          className="text-[32px] font-bold leading-none"
-        >
+        <h1 style={headingStyle} className="text-[32px] font-bold leading-none">
           Account Settings
         </h1>
-        <div
-          className="mt-4"
-          style={{ height: "2px", backgroundColor: brand.primaryColor }}
-        />
+        <div className="mt-4" style={{ height: "2px", backgroundColor: brand.primaryColor }} />
       </div>
 
       {/* ── Row 2: Signed-in identity ─────────────────────────── */}
@@ -147,8 +146,7 @@ export default function Screen() {
             lineHeight: 1.5,
           }}
         >
-          Permanently delete your account and all your tasks. This action
-          cannot be undone.
+          Permanently delete your account and all your tasks. This action cannot be undone.
         </p>
       </div>
 
@@ -200,10 +198,7 @@ export default function Screen() {
             }}
           >
             {/* Modal header */}
-            <div
-              className="px-5 py-4"
-              style={{ borderBottom: "2px solid " + brand.primaryColor }}
-            >
+            <div className="px-5 py-4" style={{ borderBottom: "2px solid " + brand.primaryColor }}>
               <h2
                 id="delete-modal-title"
                 style={headingStyle}
@@ -215,10 +210,7 @@ export default function Screen() {
 
             {/* Modal body */}
             <div className="px-5 py-5">
-              <div
-                data-wf="i-4-0-0"
-                className="flex items-start gap-2.5"
-              >
+              <div data-wf="i-4-0-0" className="flex items-start gap-2.5">
                 <Icons.AlertCircle
                   aria-hidden="true"
                   style={{
@@ -237,17 +229,13 @@ export default function Screen() {
                     lineHeight: 1.5,
                   }}
                 >
-                  Are you sure? Your account and all tasks will be permanently
-                  removed. Sessions will be ended immediately and you will not
-                  be able to sign in again.
+                  Are you sure? Your account and all tasks will be permanently removed. Sessions
+                  will be ended immediately and you will not be able to sign in again.
                 </p>
               </div>
 
               <div className="mt-5">
-                <Label
-                  htmlFor="confirm-delete"
-                  style={labelStyle}
-                >
+                <Label htmlFor="confirm-delete" style={labelStyle}>
                   Type DELETE to confirm
                 </Label>
                 <Input
@@ -290,10 +278,7 @@ export default function Screen() {
             </div>
 
             {/* Modal footer — Row 6 */}
-            <div
-              className="flex"
-              style={{ borderTop: "2px solid " + brand.primaryColor }}
-            >
+            <div className="flex" style={{ borderTop: "2px solid " + brand.primaryColor }}>
               <div data-wf="b-5-0" className="flex-[8_8_0%]">
                 <button
                   data-wf="b-5-0"
@@ -305,10 +290,7 @@ export default function Screen() {
                     fontSize: "14px",
                     fontWeight: 600,
                     color: brand.backgroundColor,
-                    backgroundColor:
-                      canConfirmDelete && !deleting
-                        ? brand.accentColor
-                        : "#d4a38a",
+                    backgroundColor: canConfirmDelete && !deleting ? brand.accentColor : "#d4a38a",
                     border: "none",
                     borderRight: "2px solid " + brand.primaryColor,
                     borderRadius: 0,
