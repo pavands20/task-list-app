@@ -17,6 +17,23 @@ _No E2E run yet._
 <!-- sdlc:auto:end unit -->
 
 <!-- sdlc:auto:start dev-checks -->
+### Sprint 4
+
+| Step | Status | Ticket | Finished |
+|---|---|---|---|
+| run_checks | succeeded | — | 2026-11-19 |
+| write_tests | succeeded | US-014 | 2026-11-19 |
+| write_tests | succeeded | US-015 | 2026-11-19 |
+
+### Sprint 3
+
+| Step | Status | Ticket | Finished |
+|---|---|---|---|
+| run_checks | succeeded | — | 2026-11-19 |
+| write_tests | succeeded | US-005 | 2026-11-19 |
+| write_tests | succeeded | US-008 | 2026-11-19 |
+| write_tests | succeeded | US-012 | 2026-11-19 |
+
 ### Sprint 2
 
 | Step | Status | Ticket | Finished |

@@ -3,9 +3,9 @@
 > Maintained by QuorQ AI SDLC. Text between `sdlc:auto` markers is regenerated; anything outside them is yours and is kept.
 
 <!-- sdlc:auto:start summary -->
-156 tests · Passed 156 · Failed 0 · Skipped 0 · Not run 0
+229 tests · Passed 229 · Failed 0 · Skipped 0 · Not run 0
 
-Acceptance criteria covered: 19/31 · passing: 19/31
+Acceptance criteria covered: 31/31 · passing: 31/31
 <!-- sdlc:auto:end summary -->
 
 <!-- sdlc:auto:start tests -->
@@ -179,6 +179,107 @@ Acceptance criteria covered: 19/31 · passing: 19/31
 | — | user deletes a task and it no longer appears in the list | E2E | Passed | `frontend/e2e/us009-toggle-edit-delete.spec.ts` |
 | — | user edits a task's title and due date via the edit modal and changes persist after reload | E2E | Passed | `frontend/e2e/us009-toggle-edit-delete.spec.ts` |
 
+## Sprint 3
+
+### US-005: Delete my account
+
+| Criteria | Test | Level | Result | File |
+|---|---|---|---|---|
+| AC-012 | test_ac012_delete_account_removes_user_tasks_sessions_and_tokens | Unit | Passed | `backend/tests/unit/test_auth.py` |
+| NFR-002 | test_nfr002_delete_account_revokes_all_sessions | Unit | Passed | `backend/tests/unit/test_auth.py` |
+| NFR-006 | test_nfr006_delete_account_is_permanent_user_gone | Unit | Passed | `backend/tests/unit/test_auth.py` |
+| AC-012 | Account screen > [AC-012] shows an error message and stays on the account settings screen when DELETE /account fails | Unit | Passed | `frontend/src/screens/Account.test.tsx` |
+| AC-012 | Account screen > [AC-012] the delete button shows a loading state ('Deleting…') while the API call is in flight | Unit | Passed | `frontend/src/screens/Account.test.tsx` |
+| AC-012 | Account screen > [AC-012] typing DELETE and confirming calls DELETE /account via apiFetch, clears the session token, and navigates to /sign-in on success | Unit | Passed | `frontend/src/screens/Account.test.tsx` |
+| AC-012 | test_ac012_delete_account_returns_204_and_removes_all_data | Integration | Passed | `backend/tests/integration/test_auth.py` |
+| AC-013 | test_ac013_login_after_account_deletion_returns_401 | Integration | Passed | `backend/tests/integration/test_auth.py` |
+| — | test_delete_account_with_expired_token_returns_401 | Integration | Passed | `backend/tests/integration/test_auth.py` |
+| — | test_delete_account_with_invalid_token_returns_401 | Integration | Passed | `backend/tests/integration/test_auth.py` |
+| — | test_delete_account_without_authorization_returns_401 | Integration | Passed | `backend/tests/integration/test_auth.py` |
+| NFR-002 | test_nfr002_delete_account_revokes_sessions_old_token_401 | Integration | Passed | `backend/tests/integration/test_auth.py` |
+| NFR-006 | test_nfr006_delete_account_does_not_affect_other_users | Integration | Passed | `backend/tests/integration/test_auth.py` |
+| AC-012 | [AC-012] a signed-in user deletes their account and is redirected to /sign-in | E2E | Passed | `frontend/e2e/us005-delete-account.spec.ts` |
+| AC-013 | [AC-013] after deletion, signing in with the deleted account's credentials fails | E2E | Passed | `frontend/e2e/us005-delete-account.spec.ts` |
+| NFR-002 | [NFR-002] after deletion, the previous session token is invalid: /tasks redirects to /sign-in | E2E | Passed | `frontend/e2e/us005-delete-account.spec.ts` |
+
+### US-008: Edit a task
+
+| Criteria | Test | Level | Result | File |
+|---|---|---|---|---|
+| AC-018 | Tasks screen > [AC-018] clearing the due date in the edit modal sends due_date: null and shows 'No due date' | Unit | Passed | `frontend/src/screens/Tasks.test.tsx` |
+| AC-025 | Tasks screen > [AC-025] each task shows its title, its due date if set, and whether it is done or active | Unit | Passed | `frontend/src/screens/Tasks.test.tsx` |
+| AC-026 | Tasks screen > [AC-026] shows an empty-state message inviting me to add my first task when I have no tasks | Unit | Passed | `frontend/src/screens/Tasks.test.tsx` |
+| AC-027 | Tasks screen > [AC-027] selecting the active filter shows only tasks that are not done | Unit | Passed | `frontend/src/screens/Tasks.test.tsx` |
+| AC-028 | Tasks screen > [AC-028] selecting the completed filter shows only tasks that are done | Unit | Passed | `frontend/src/screens/Tasks.test.tsx` |
+| — | Tasks screen > [edit-modal] opening the edit modal focuses the title input | Unit | Passed | `frontend/src/screens/Tasks.test.tsx` |
+| — | Tasks screen > [edit-modal] pressing Escape closes the edit modal without saving | Unit | Passed | `frontend/src/screens/Tasks.test.tsx` |
+| — | Tasks screen > [handleToggleInModal] clicking Mark Done in the edit modal toggles is_done via PATCH and updates the modal | Unit | Passed | `frontend/src/screens/Tasks.test.tsx` |
+| AC-018 | [AC-018] PATCH clears the due date with due_date: null | E2E | Passed | `frontend/e2e/us008-edit-task.spec.ts` |
+| AC-018 | [AC-018] PATCH returns 200 with { id, title, due_date, is_done } | E2E | Passed | `frontend/e2e/us008-edit-task.spec.ts` |
+| AC-018 | [AC-018] clearing the due date in the edit modal removes it and the change persists after reload | E2E | Passed | `frontend/e2e/us008-edit-task.spec.ts` |
+| AC-018 | [AC-018] editing only the title leaves the due date untouched and persists | E2E | Passed | `frontend/e2e/us008-edit-task.spec.ts` |
+| AC-019 | [AC-019] PATCH with an empty title is rejected with a title-required error and leaves the task unchanged | E2E | Passed | `frontend/e2e/us008-edit-task.spec.ts` |
+| AC-019 | [AC-019] clearing the title in the edit modal is rejected and the task is unchanged | E2E | Passed | `frontend/e2e/us008-edit-task.spec.ts` |
+| AC-022 | [AC-022] DELETE returns 204 and the task is permanently removed | E2E | Passed | `frontend/e2e/us008-edit-task.spec.ts` |
+| AC-022 | [AC-022] deleting a task permanently removes it from the list and it stays gone after reload | E2E | Passed | `frontend/e2e/us008-edit-task.spec.ts` |
+
+### US-012: View my tasks in a single list
+
+| Criteria | Test | Level | Result | File |
+|---|---|---|---|---|
+| AC-022 | test_ac022_delete_task_permanently_removes_it_from_list | Integration | Passed | `backend/tests/integration/test_tasks.py` |
+| AC-025 | test_ac025_get_tasks_response_has_required_fields | Integration | Passed | `backend/tests/integration/test_tasks.py` |
+| AC-026 | test_ac026_get_tasks_returns_empty_array_for_new_user | Integration | Passed | `backend/tests/integration/test_tasks.py` |
+| — | GET /tasks returns only the authenticated user's tasks | E2E | Passed | `frontend/e2e/us012-view-tasks.spec.ts` |
+| — | GET /tasks with an invalid Bearer token returns 401 | E2E | Passed | `frontend/e2e/us012-view-tasks.spec.ts` |
+| — | GET /tasks without a Bearer token returns 401 | E2E | Passed | `frontend/e2e/us012-view-tasks.spec.ts` |
+| AC-025 | [AC-025] GET /tasks returns each task with id, title, due_date, is_done and created_at | E2E | Passed | `frontend/e2e/us012-view-tasks.spec.ts` |
+| AC-025 | [AC-025] opening the task list shows each task's title, due date and done/active status | E2E | Passed | `frontend/e2e/us012-view-tasks.spec.ts` |
+| AC-026 | [AC-026] GET /tasks returns an empty array for a user with no tasks | E2E | Passed | `frontend/e2e/us012-view-tasks.spec.ts` |
+| AC-026 | [AC-026] with no tasks yet the list shows an empty-state message inviting me to add my first task | E2E | Passed | `frontend/e2e/us012-view-tasks.spec.ts` |
+| AC-027 | [AC-027] selecting the active filter shows only tasks that are not done | E2E | Passed | `frontend/e2e/us012-view-tasks.spec.ts` |
+| AC-028 | [AC-028] selecting the completed filter shows only tasks that are done | E2E | Passed | `frontend/e2e/us012-view-tasks.spec.ts` |
+
+## Sprint 4
+
+### US-014: Default sort by due date then creation time
+
+| Criteria | Test | Level | Result | File |
+|---|---|---|---|---|
+| AC-029 | Tasks screen > [AC-029] displays tasks ordered by due date ascending regardless of API order | Unit | Passed | `frontend/src/screens/Tasks.test.tsx` |
+| AC-030 | Tasks screen > [AC-030] same-due-date tasks keep creation-time order, and no-due-date tasks follow in creation-time order | Unit | Passed | `frontend/src/screens/Tasks.test.tsx` |
+| — | Tasks screen > [handleAdd] shows the API validation detail when POST /tasks returns 400 | Unit | Passed | `frontend/src/screens/Tasks.test.tsx` |
+| — | Tasks screen > [handleSave] shows the API validation detail when PATCH /tasks/{id} returns 400 | Unit | Passed | `frontend/src/screens/Tasks.test.tsx` |
+| AC-029, AC-030 | test_ac029_ac030_full_default_sort_mix | Integration | Passed | `backend/tests/integration/test_tasks.py` |
+| AC-029 | test_ac029_due_date_takes_precedence_over_creation_time | Integration | Passed | `backend/tests/integration/test_tasks.py` |
+| AC-029 | test_ac029_tasks_ordered_by_due_date_ascending | Integration | Passed | `backend/tests/integration/test_tasks.py` |
+| AC-030 | test_ac030_no_due_date_tasks_follow_dated_tasks | Integration | Passed | `backend/tests/integration/test_tasks.py` |
+| AC-030 | test_ac030_tasks_same_due_date_ordered_by_creation_time | Integration | Passed | `backend/tests/integration/test_tasks.py` |
+| AC-030 | test_ac030_tasks_without_due_date_ordered_by_creation_time | Integration | Passed | `backend/tests/integration/test_tasks.py` |
+| AC-029 | [AC-029] GET /tasks returns dated tasks ordered by due date ascending then creation time | E2E | Passed | `frontend/e2e/us014-default-sort.spec.ts` |
+| AC-029 | [AC-029] tasks with different due dates appear ordered by due date ascending | E2E | Passed | `frontend/e2e/us014-default-sort.spec.ts` |
+| AC-030 | [AC-030] GET /tasks orders same-due-date and no-due-date tasks by creation time | E2E | Passed | `frontend/e2e/us014-default-sort.spec.ts` |
+| AC-030 | [AC-030] same-due-date tasks keep creation order and no-due-date tasks follow in creation order | E2E | Passed | `frontend/e2e/us014-default-sort.spec.ts` |
+| NFR-007 | [NFR-007] tens of tasks with mixed due dates all render in the correct default sort order | E2E | Passed | `frontend/e2e/us014-default-sort.spec.ts` |
+
+### US-015: Use the app on any device size
+
+| Criteria | Test | Level | Result | File |
+|---|---|---|---|---|
+| NFR-008 | Tasks responsive layout (NFR-008) > [NFR-008] each task row uses card-layout cell classes so the row reflows without horizontal scroll | Unit | Passed | `frontend/src/screens/Tasks.responsive.test.tsx` |
+| NFR-008 | Tasks responsive layout (NFR-008) > [NFR-008] the add-task form stacks vertically on small screens so it stays usable without horizontal scroll | Unit | Passed | `frontend/src/screens/Tasks.responsive.test.tsx` |
+| NFR-008 | Tasks responsive layout (NFR-008) > [NFR-008] the app header nav wraps so it adapts on small screens without horizontal scroll | Unit | Passed | `frontend/src/screens/Tasks.responsive.test.tsx` |
+| NFR-008 | Tasks responsive layout (NFR-008) > [NFR-008] the edit modal action buttons stack vertically on small screens | Unit | Passed | `frontend/src/screens/Tasks.responsive.test.tsx` |
+| NFR-008 | Tasks responsive layout (NFR-008) > [NFR-008] the edit modal is width-capped, full-width and padded so it fits the mobile viewport | Unit | Passed | `frontend/src/screens/Tasks.responsive.test.tsx` |
+| NFR-008 | Tasks responsive layout (NFR-008) > [NFR-008] the empty state renders inside the responsive width-capped container | Unit | Passed | `frontend/src/screens/Tasks.responsive.test.tsx` |
+| NFR-008 | Tasks responsive layout (NFR-008) > [NFR-008] the filter tabs and sort label stack vertically on small screens | Unit | Passed | `frontend/src/screens/Tasks.responsive.test.tsx` |
+| NFR-008 | Tasks responsive layout (NFR-008) > [NFR-008] the screen content is centered and width-capped so it stays readable on large desktops without horizontal scroll | Unit | Passed | `frontend/src/screens/Tasks.responsive.test.tsx` |
+| NFR-008 | Tasks responsive layout (NFR-008) > [NFR-008] the task table carries a responsive class so it can reflow into a stacked card layout on small screens | Unit | Passed | `frontend/src/screens/Tasks.responsive.test.tsx` |
+| AC-031, NFR-008 | [AC-031/NFR-008] on mobile, add / edit / toggle done / delete all complete without horizontal scrolling | E2E | Passed | `frontend/e2e/us015-responsive.spec.ts` |
+| AC-031, NFR-008 | [AC-031/NFR-008] on mobile, the filter tabs are visible and functional without horizontal scroll | E2E | Passed | `frontend/e2e/us015-responsive.spec.ts` |
+| AC-031, NFR-008 | [AC-031/NFR-008] the task list has no horizontal scroll on a 1920x1080 desktop viewport | E2E | Passed | `frontend/e2e/us015-responsive.spec.ts` |
+| AC-031, NFR-008 | [AC-031/NFR-008] the task list has no horizontal scroll on a 375x667 mobile viewport | E2E | Passed | `frontend/e2e/us015-responsive.spec.ts` |
+
 ## Project setup
 
 | Criteria | Test | Level | Result | File |
@@ -190,6 +291,7 @@ Acceptance criteria covered: 19/31 · passing: 19/31
 | NFR-003 | test_nfr003_find_valid_token_rejects_expired_token | Unit | Passed | `backend/tests/unit/test_password_reset.py` |
 | NFR-003 | test_nfr003_find_valid_token_rejects_unknown_token | Unit | Passed | `backend/tests/unit/test_password_reset.py` |
 | NFR-003 | test_nfr003_find_valid_token_rejects_used_token | Unit | Passed | `backend/tests/unit/test_password_reset.py` |
+| AC-026 | Tasks screen load-error path > [AC-026] a failed GET /tasks on mount leaves the list empty and shows the empty state without crashing | Unit | Passed | `frontend/src/screens/Tasks.load-error.test.tsx` |
 | — | test_health_reports_ok | Integration | Passed | `backend/tests/integration/test_health.py` |
 | — | test_the_openapi_document_builds | Integration | Passed | `backend/tests/integration/test_health.py` |
 | AC-009 | test_ac009_request_registered_email_creates_token_row | Integration | Passed | `backend/tests/integration/test_password_reset.py` |

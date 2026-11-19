@@ -5,7 +5,7 @@
 <!-- sdlc:auto:start overview -->
 A simple task list app: a signed-in user can add, edit, complete and delete their own tasks, with a title, optional due date and done flag. React frontend, FastAPI backend, PostgreSQL. No teams, no sharing, no notifications.
 
-**Documentation version:** v5
+**Documentation version:** v7
 <!-- sdlc:auto:end overview -->
 
 ## Contents
@@ -16,21 +16,21 @@ A simple task list app: a signed-in user can add, edit, complete and delete thei
 | [Requirements](requirements/README.md) | v1 approved |
 | [Architecture](architecture/README.md) | 15 entries |
 | [Planning](planning/README.md) | 7 entries |
-| [Development](development/README.md) | 4 entries |
+| [Development](development/README.md) | 2 entries |
 | [Testing](testing/README.md) | 0 entries |
 | [Deployment](deployment/README.md) | 0 entries |
 | [Maintenance](maintenance/README.md) | 0 entries |
 | [Data model](architecture/data-model.md) | generated |
 | [API (OpenAPI)](architecture/api/openapi.yaml) | generated |
 | [Decisions (ADRs)](architecture/adr/README.md) | 4 decisions |
-| [Sprint plan](development/sprint-plan.md) | 4 sprints |
+| [Sprint plan](development/sprint-plan.md) | 5 sprints |
 | [Developer guide](development/developer-guide.md) | generated |
 | [API reference](development/api-reference.md) | 10 routes |
 | [Test report](testing/test-report.md) | not run yet |
-| [Tests](testing/test-cases.md) | 156 tests |
+| [Tests](testing/test-cases.md) | 229 tests |
 | [Deployment guide](deployment/deployment-guide.md) | deployed |
 | [Runbook](deployment/runbook.md) | deployed |
 | [Release notes](deployment/release-notes.md) | 1 release |
 | [Traceability matrix](traceability-matrix.md) | 15 requirements |
-| [Changelog](CHANGELOG.md) | 5 versions |
+| [Changelog](CHANGELOG.md) | 7 versions |
 <!-- sdlc:auto:end contents -->

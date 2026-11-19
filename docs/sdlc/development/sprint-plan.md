@@ -61,6 +61,19 @@ Capacity: 20 points · Committed: 6
 | US-014 | Story | Default sort by due date then creation time | 3 | backend-agent | US-012 |
 | US-015 | Story | Use the app on any device size | 3 | frontend-agent | US-012 |
 
+## Sprint 5: Fixes
+
+Fix the findings SonarQube reported.
+
+Capacity: 0 points · Committed: 0
+
+| Key | Type | Title | Points | Role | Depends on |
+|---|---|---|---|---|---|
+| FIX-SEC-githubactions-s7637-9c1e4e26 | Story | Fix: Use full commit SHA hash for this dependency. (.github/workflows/sonar-scan.yml) | — | devops-agent | — |
+| FIX-SEC-githubactions-s7637-53fd1e3a | Story | Fix: Use full commit SHA hash for this dependency. (.github/workflows/deploy.yml) | — | devops-agent | — |
+| FIX-SEC-githubactions-s8543-ca13026c | Story | Fix: Using dependencies without locking resolved versions is security-sensitive. (.github/workflows/deploy.yml) | — | devops-agent | — |
+| FIX-SEC-docker-s8544-82cfea7f | Story | Fix: Using dependencies without locking resolved versions is security-sensitive. (backend/Dockerfile) | — | — | — |
+
 ## Unscheduled
 
 _Nothing unscheduled._
